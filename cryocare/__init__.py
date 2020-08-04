@@ -67,62 +67,6 @@ class Plugin(pwem.Plugin):
 
         CRYOCARE_INSTALLED = '%s_%s_installed' % (cryoCARE, CRYOCARE_DEFAULT_VERSION)
 
-        # Download cryoCARE binaries
-        installationCmd = 'wget https://cloud.mpi-cbg.de/index.php/s/Fu9RzDzbSxdXSZR/download ' \
-                          '-O %s && ' % (cryoCARE + '_v' + CRYOCARE_DEFAULT_VERSION + '.simg')
-
-        # try to get CONDA activation command
-        installationCmd += cls.getCondaActivationCmd()
-
-        # Create the environment
-        installationCmd += 'conda create -y -n %s -c conda-forge -c anaconda python=3.6 ' \
-                           'tensorflow-gpu==1.15 ' \
-                           'mrcfile ' \
-                           '&& ' \
-                           % CRYOCARE_ENV_NAME
-
-        # Activate new the environment
-        installationCmd += 'conda activate %s && ' % CRYOCARE_ENV_NAME
-
-        # Install non-conda required packages
-        installationCmd += 'pip install csbdeep && '
-
-        # # Download cryoCARE binaries
-        # installationCmd = 'wgt https://cloud.mpi-cbg.de/index.php/s/Fu9RzDzbSxdXSZR/download && '
-
-        # Flag installation finished
-        installationCmd += 'touch %s' % CRYOCARE_INSTALLED
-
-        cryocare_commands = [(installationCmd, CRYOCARE_INSTALLED)]
-
-        envPath = os.environ.get('PATH', "")  # keep path since conda likely in there
-        installEnvVars = {'PATH': envPath} if envPath else None
-
-        cryocare_commands += ''
-
-        env.addPackage(cryoCARE,
-                       version=CRYOCARE_DEFAULT_VERSION,
-                       tar='void.tgz',
-                       # createBuildDir=True,
-                       # buildDir=cls._getEMFolder(DEFAULT_VERSION),
-                       commands=cryocare_commands,
-                       neededProgs=cls.getDependencies(),
-                       vars=installEnvVars,
-                       default=True)
-
-    @classmethod
-    def getDependencies(cls):
-        # try to get CONDA activation command
-        condaActivationCmd = cls.getCondaActivationCmd()
-        neededProgs = ['wget']
-        if not condaActivationCmd:
-            neededProgs.append('conda')
-
-        return neededProgs
-
-    @classmethod
-    def createCryocareEnv(cls, env):
-        CRYOCARE_INSTALLED = '%s_%s_installed' % (cryoCARE, CRYOCARE_DEFAULT_VERSION)
         # try to get CONDA activation command
         installationCmd = cls.getCondaActivationCmd()
 
@@ -139,6 +83,10 @@ class Plugin(pwem.Plugin):
         # Install non-conda required packages
         installationCmd += 'pip install csbdeep && '
 
+        # Add cryoCARE code
+        installationCmd += 'wget https://github.com/juglab/cryoCARE_T2T/archive/v0.1.1.tar.gz -O %s && ' \
+                           'tar -xf %s && rm %s && ' % (cryoCARE, cryoCARE, cryoCARE)
+
         # Flag installation finished
         installationCmd += 'touch %s' % CRYOCARE_INSTALLED
 
@@ -146,13 +94,24 @@ class Plugin(pwem.Plugin):
 
         envPath = os.environ.get('PATH', "")  # keep path since conda likely in there
         installEnvVars = {'PATH': envPath} if envPath else None
-        # env.addPackage(cryoCARE,
-        #                version=CRYOCARE_DEFAULT_VERSION,
-        #                tar='void.tgz',
-        #                commands=cryocare_commands,
-        #                neededProgs=cls.getDependencies(),
-        #                default=True,
-        #                vars=installEnvVars)
+
+        env.addPackage(cryoCARE,
+                       version=CRYOCARE_DEFAULT_VERSION,
+                       tar='void.tgz',
+                       commands=cryocare_commands,
+                       neededProgs=cls.getDependencies(),
+                       vars=installEnvVars,
+                       default=True)
+
+    @classmethod
+    def getDependencies(cls):
+        # try to get CONDA activation command
+        condaActivationCmd = cls.getCondaActivationCmd()
+        neededProgs = ['wget']
+        if not condaActivationCmd:
+            neededProgs.append('conda')
+
+        return neededProgs
 
     @classmethod
     def runCryocare(cls, protocol, program, args, cwd=None):
