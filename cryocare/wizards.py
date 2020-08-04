@@ -27,12 +27,12 @@
 from pyworkflow.gui import ListTreeProviderString, dialog
 from pyworkflow.object import String
 from pyworkflow.wizard import Wizard
-from cryocare.protocols import CryocareP2PTap
+from .protocols.protocol_training import ProtCryocareTraining
 
 
 class CryocareHelloWorldWizard(Wizard):
     # Dictionary to target protocol parameters
-    _targets = [(CryocareP2PTap, ['message'])]
+    _targets = [(ProtCryocareTraining, ['message'])]
 
     def show(self, form, *params):
 

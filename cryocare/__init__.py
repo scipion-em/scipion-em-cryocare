@@ -23,6 +23,7 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
+from os.path import join
 
 import pwem
 import os
@@ -116,6 +117,7 @@ class Plugin(pwem.Plugin):
     @classmethod
     def runCryocare(cls, protocol, program, args, cwd=None):
         """ Run cryoCARE command from a given protocol. """
+        program = cls.getHome('cryoCARE_T2T-0.1.1', 'example', program)
         fullProgram = '%s %s && %s' % (cls.getCondaActivationCmd(),
                                        cls.getCryocareEnvActivation(),
                                        program)
