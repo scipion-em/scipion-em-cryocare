@@ -36,7 +36,7 @@ from pyworkflow.utils import Message
 
 
 class ProtCryocareTraining(EMProtocol):
-    """  Use two data-independent reconstructed tomograms to train a 3D cryo-CARE network."""
+    """Use two data-independent reconstructed tomograms to train a 3D cryo-CARE network."""
 
     _label = 'cryocare training'
 
@@ -57,17 +57,10 @@ class ProtCryocareTraining(EMProtocol):
 
         form.addParam('oddTomo', params.PointerParam,
                       pointerClass='Tomogram',
-                      label='Tomogram 1 (even)',
+                      label='Tomogram 1 (odd)',
                       important=True,
                       help='Tomogram reconstructed from the odd frames of the tilt'
                            'series movies.')
-
-        # form.addParam('previousCount', params.IntParam,
-        #               default=0,
-        #               allowsNull=True,
-        #               label='Previous count',
-        #               help='Previous count of printed messages',
-        #               allowsPointers=True)
 
     # --------------------------- STEPS functions ------------------------------
     def _insertAllSteps(self):

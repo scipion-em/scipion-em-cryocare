@@ -23,7 +23,6 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
-from os.path import join
 
 import pwem
 import os
@@ -41,6 +40,7 @@ cryoCARE = 'cryoCARE'
 class Plugin(pwem.Plugin):
 
     _homeVar = CRYOCARE_HOME
+    _url = 'https://github.com/scipion-em/scipion-em-cryocare'
 
     @classmethod
     def _defineVariables(cls):

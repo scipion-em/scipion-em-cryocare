@@ -35,11 +35,11 @@ from pyworkflow.protocol import params, Integer
 from pyworkflow.utils import Message
 
 
-class CryocareP2PTap(EMProtocol):
-    """  Uses tomographic tilt-angle pairs on acquired, not dose-fractionated data, using pairs of neighboring tilt-angles
-to train. It will take 1000 randomly selected patch pairs of size 128 × 128 taken from adjacent tilt-angle projections.
-Final restorations are retrieved by applying the trained network to both tilt-angles individually."""
-    _label = 'P2P tilt angle pairs'
+class ProtCryocareDenoise(EMProtocol):
+    """Generate the final restored tomogram by applying the cryoCARE trained network to both
+tomograms followed by per-pixel averaging."""
+
+    _label = 'cryocare denoising'
 
     # -------------------------- DEFINE param functions ----------------------
     def _defineParams(self, form):
@@ -49,40 +49,37 @@ Final restorations are retrieved by applying the trained network to both tilt-an
         """
         # You need a params to belong to a section:
         form.addSection(label=Message.LABEL_INPUT)
-        form.addParam('message', params.StringParam,
-                      default='Hello world!',
-                      label='Message', important=True,
-                      help='What will be printed in the console.')
+        form.addParam('evenTomo', params.PointerParam,
+                      pointerClass='Tomogram',
+                      label='Tomogram 1 (even)',
+                      important=True,
+                      help='Tomogram reconstructed from the even frames of the tilt'
+                           'series movies.')
 
-        form.addParam('times', params.IntParam,
-                      default=10,
-                      label='Times', important=True,
-                      help='Times the message will be printed.')
+        form.addParam('oddTomo', params.PointerParam,
+                      pointerClass='Tomogram',
+                      label='Tomogram 1 (odd)',
+                      important=True,
+                      help='Tomogram reconstructed from the odd frames of the tilt'
+                           'series movies.')
 
-        form.addParam('previousCount', params.IntParam,
-                      default=0,
-                      allowsNull=True,
-                      label='Previous count',
-                      help='Previous count of printed messages',
-                      allowsPointers=True)
+        form.addParam('inputModel', params.PointerParam,
+                      pointerClass='CryocareModel',
+                      label="Input model",
+                      important=True,
+                      help='Select an existing cryoCare trained model.')
 
     # --------------------------- STEPS functions ------------------------------
     def _insertAllSteps(self):
         # Insert processing steps
-        self._insertFunctionStep('greetingsStep')
+        self._insertFunctionStep('predictStep')
         self._insertFunctionStep('createOutputStep')
 
-    def greetingsStep(self):
-        # say what the parameter says!!
-
-        for time in range(0, self.times.get()):
-            print(self.message)
+    def predictStep(self):
+        pass
 
     def createOutputStep(self):
-        # register how many times the message has been printed
-        # Now count will be an accumulated value
-        timesPrinted = Integer(self.times.get() + self.previousCount.get())
-        self._defineOutputs(count=timesPrinted)
+        pass
 
     # --------------------------- INFO functions -----------------------------------
     def _summary(self):
