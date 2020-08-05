@@ -51,14 +51,14 @@ tomograms followed by per-pixel averaging."""
         form.addSection(label=Message.LABEL_INPUT)
         form.addParam('evenTomo', params.PointerParam,
                       pointerClass='Tomogram',
-                      label='Tomogram 1 (even)',
+                      label='Tomogram (from even frames)',
                       important=True,
                       help='Tomogram reconstructed from the even frames of the tilt'
                            'series movies.')
 
         form.addParam('oddTomo', params.PointerParam,
                       pointerClass='Tomogram',
-                      label='Tomogram 1 (odd)',
+                      label='Tomogram (from odd frames)',
                       important=True,
                       help='Tomogram reconstructed from the odd frames of the tilt'
                            'series movies.')
@@ -87,16 +87,9 @@ tomograms followed by per-pixel averaging."""
         summary = []
 
         if self.isFinished():
-            summary.append("This protocol has printed *%s* %i times." % (self.message, self.times))
+            summary.append("Some message to summarize.")
         return summary
 
     def _methods(self):
         methods = []
-
-        if self.isFinished():
-            methods.append("%s has been printed in this run %i times." % (self.message, self.times))
-            if self.previousCount.hasPointer():
-                methods.append("Accumulated count from previous runs were %i."
-                               " In total, %s messages has been printed."
-                               % (self.previousCount, self.count))
         return methods
