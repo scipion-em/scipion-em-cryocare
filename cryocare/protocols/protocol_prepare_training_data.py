@@ -1,13 +1,12 @@
 from pwem.protocols import EMProtocol
-from pyworkflow.protocol import params
+from pyworkflow.protocol import params, Integer
 from pyworkflow.utils import Message
 
 
-class ProtCryocareDenoise(EMProtocol):
-    """Generate the final restored tomogram by applying the cryoCARE trained network to both
-tomograms followed by per-pixel averaging."""
+class ProtCryocarePrepareTrainingData(EMProtocol):
+    """Operate the data to make it be expressed as expected by cryoCARE net."""
 
-    _label = 'cryocare denoising'
+    _label = 'cryocare prepare training data'
 
     # -------------------------- DEFINE param functions ----------------------
     def _defineParams(self, form):
@@ -31,22 +30,12 @@ tomograms followed by per-pixel averaging."""
                       help='Tomogram reconstructed from the odd frames of the tilt'
                            'series movies.')
 
-        form.addParam('inputModel', params.PointerParam,
-                      pointerClass='CryocareModel',
-                      label="Input model",
-                      important=True,
-                      help='Select an existing cryoCare trained model.')
-
     # --------------------------- STEPS functions ------------------------------
     def _insertAllSteps(self):
         # Insert processing steps
-        self._insertFunctionStep('predictStep')
-        self._insertFunctionStep('createOutputStep')
+        self._insertFunctionStep('prepareTrainingDataStep')
 
-    def predictStep(self):
-        pass
-
-    def createOutputStep(self):
+    def prepareTrainingDataStep(self):
         pass
 
     # --------------------------- INFO functions -----------------------------------

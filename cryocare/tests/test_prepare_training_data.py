@@ -3,7 +3,7 @@ from pyworkflow.object import Pointer
 from pyworkflow.tests import BaseTest, setupTestProject
 import tomo.protocols
 from . import DataSet
-from ..protocols import ProtCryocareTraining
+from ..protocols import ProtCryocarePrepareTrainingData
 
 
 class TestTraining(BaseTest):
@@ -27,10 +27,10 @@ class TestTraining(BaseTest):
         protImport = self._runImportTomograms()
         output = getattr(protImport, 'outputTomograms', None)
         self.assertSetSize(output, size=2, msg="There was a problem with Import Tomograms protocol")
-        protTraining = self.newProtocol(ProtCryocareTraining)
-        protTraining.evenTomo = Pointer(protImport, extended='outputTomograms.1')
-        protTraining.oddTomo = Pointer(protImport, extended='outputTomograms.2')
+        protPrepTrainingData = self.newProtocol(ProtCryocarePrepareTrainingData)
+        protPrepTrainingData.evenTomo = Pointer(protImport, extended='outputTomograms.1')
+        protPrepTrainingData.oddTomo = Pointer(protImport, extended='outputTomograms.2')
 
-        self.launchProtocol(protTraining)
+        self.launchProtocol(protPrepTrainingData)
         # Define assertions
-        self.assertTrue(hasattr(protTraining, 'cryocareModel'), "Model wasn't correctly generated.")
+        self.assertTrue(hasattr(protPrepTrainingData, 'preparedData'), "Data wasn't correctly prepared.")

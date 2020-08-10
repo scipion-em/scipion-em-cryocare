@@ -41,4 +41,4 @@ class CryocareModel(EMObject):
         self._path.set(path)
 
     def __str__(self):
-        return "CryocareModel(path=%s)" % self.getPath()
+        return "CryocareModel (path=%s)" % self.getPath()

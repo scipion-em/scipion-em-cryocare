@@ -27,3 +27,4 @@
 
 from .protocol_training import ProtCryocareTraining
 from .protocol_denoise import ProtCryocareDenoise
+from .protocol_prepare_training_data import ProtCryocarePrepareTrainingData
