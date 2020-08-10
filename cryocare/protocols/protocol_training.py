@@ -65,11 +65,11 @@ class ProtCryocareTraining(EMProtocol):
     # --------------------------- STEPS functions ------------------------------
     def _insertAllSteps(self):
         # Insert processing steps
-        self._insertFunctionStep('genTrainDataStep')
+        self._insertFunctionStep('prepareTrainingDataStep')
         self._insertFunctionStep('trainStep')
         self._insertFunctionStep('createOutputStep')
 
-    def genTrainDataStep(self):
+    def prepareTrainingDataStep(self):
         pass
 
     def trainStep(self):
