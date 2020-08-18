@@ -44,7 +44,7 @@ class Plugin(pwem.Plugin):
 
     @classmethod
     def _defineVariables(cls):
-        # cryocare does NOT need EmVar because it uses a conda environment.
+        # cryoCARE does NOT need EmVar because it uses a conda environment.
         cls._defineVar(CRYOCARE_ENV_ACTIVATION, DEFAULT_ACTIVATION_CMD)
 
     @classmethod
@@ -64,8 +64,6 @@ class Plugin(pwem.Plugin):
 
     @classmethod
     def defineBinaries(cls, env):
-        # cls.createCryocareEnv(env)
-
         CRYOCARE_INSTALLED = '%s_%s_installed' % (cryoCARE, CRYOCARE_DEFAULT_VERSION)
 
         # try to get CONDA activation command
@@ -84,9 +82,8 @@ class Plugin(pwem.Plugin):
         # Install non-conda required packages
         installationCmd += 'pip install csbdeep && '
 
-        # Add cryoCARE code
-        installationCmd += 'wget https://github.com/juglab/cryoCARE_T2T/archive/v0.1.1.tar.gz -O %s && ' \
-                           'tar -xf %s && rm %s && ' % (cryoCARE, cryoCARE, cryoCARE)
+        # Install cryoCARE
+        installationCmd += 'pip install cryoCARE &&'
 
         # Flag installation finished
         installationCmd += 'touch %s' % CRYOCARE_INSTALLED
@@ -102,13 +99,13 @@ class Plugin(pwem.Plugin):
                        commands=cryocare_commands,
                        neededProgs=cls.getDependencies(),
                        vars=installEnvVars,
-                       default=True)
+                       default=bool(cls.getCondaActivationCmd()))
 
     @classmethod
     def getDependencies(cls):
         # try to get CONDA activation command
         condaActivationCmd = cls.getCondaActivationCmd()
-        neededProgs = ['wget']
+        neededProgs = []
         if not condaActivationCmd:
             neededProgs.append('conda')
 
