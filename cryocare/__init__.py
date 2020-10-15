@@ -29,7 +29,7 @@ import os
 from pyworkflow import Config
 from pyworkflow.utils import Environ
 from cryocare.constants import CRYOCARE_ENV_ACTIVATION, DEFAULT_ACTIVATION_CMD, CRYOCARE_ENV_NAME, \
-    CRYOCARE_DEFAULT_VERSION, CRYOCARE_HOME
+    CRYOCARE_DEFAULT_VERSION, CRYOCARE_HOME, CRYOCARE_CUDA_LIB
 
 _logo = "icon.png"
 _references = ['buchholz2019cryo', 'buchholz2019content']
@@ -60,6 +60,9 @@ class Plugin(pwem.Plugin):
         if 'PYTHONPATH' in environ:
             # this is required for python virtual env to work
             del environ['PYTHONPATH']
+
+        cudaLib = environ.get(CRYOCARE_CUDA_LIB, pwem.Config.CUDA_LIB)
+        environ.addLibrary(cudaLib)
         return environ
 
     @classmethod
@@ -72,7 +75,6 @@ class Plugin(pwem.Plugin):
         # Create the environment
         installationCmd += 'conda create -y -n %s -c conda-forge -c anaconda python=3.6 ' \
                            'tensorflow-gpu==1.15 ' \
-                           'mrcfile ' \
                            '&& ' \
                            % CRYOCARE_ENV_NAME
 
@@ -80,6 +82,7 @@ class Plugin(pwem.Plugin):
         installationCmd += 'conda activate %s && ' % CRYOCARE_ENV_NAME
 
         # Install non-conda required packages
+        installationCmd += 'pip install mrcfile && '
         installationCmd += 'pip install csbdeep && '
 
         # Install cryoCARE
@@ -114,7 +117,6 @@ class Plugin(pwem.Plugin):
     @classmethod
     def runCryocare(cls, protocol, program, args, cwd=None):
         """ Run cryoCARE command from a given protocol. """
-        program = cls.getHome('cryoCARE_T2T-0.1.1', 'example', program)
         fullProgram = '%s %s && %s' % (cls.getCondaActivationCmd(),
                                        cls.getCryocareEnvActivation(),
                                        program)

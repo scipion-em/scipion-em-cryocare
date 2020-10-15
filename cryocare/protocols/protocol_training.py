@@ -2,6 +2,8 @@ from pwem.protocols import EMProtocol
 from pyworkflow.protocol import IntParam, PointerParam
 from pyworkflow.utils import Message
 
+from cryocare.objects import CryocareTrainData
+
 
 class ProtCryocareTraining(EMProtocol):
     """Use two data-independent reconstructed tomograms to train a 3D cryo-CARE network."""
@@ -17,7 +19,7 @@ class ProtCryocareTraining(EMProtocol):
         # You need a params to belong to a section:
         form.addSection(label=Message.LABEL_INPUT)
         form.addParam('protPrepareTrainingData', PointerParam,
-                      pointerClass='ProtCryocarePrepareTrainingData',
+                      pointerClass='CryocareTrainData',
                       label='cryoCARE prepare training data run',
                       help = 'Select the previous cryoCARE training data run.')
         form.addSection(label='Training')

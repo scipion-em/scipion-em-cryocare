@@ -42,3 +42,21 @@ class CryocareModel(EMObject):
 
     def __str__(self):
         return "CryocareModel (path=%s)" % self.getPath()
+
+class CryocareTrainData(EMObject):
+    def __init__(self, train_data=None, mean_std=None, **kwargs):
+        EMObject.__init__(self, **kwargs)
+        self._train_data= pwobj.String(train_data)
+        self._mean_std= pwobj.String(mean_std)
+
+    def getTrainData(self):
+        return self._train_data.get()
+
+    def getMeanStd(self):
+        return self._mean_std.get()
+
+    def getPath(self):
+        return '{}\n{}'.format(self.getTrainData(), self.getMeanStd())
+
+    def __str__(self):
+        return "CryoCARE Train Data (path=%s)" % self.getPath()
