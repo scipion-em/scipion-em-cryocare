@@ -13,7 +13,7 @@ from cryocare.objects import CryocareTrainData
 class ProtCryocarePrepareTrainingData(EMProtocol):
     """Operate the data to make it be expressed as expected by cryoCARE net."""
 
-    _label = 'Prepare training data for cryoCARE.'
+    _label = 'CryoCARE Training Data Extraction'
 
     # -------------------------- DEFINE param functions ----------------------
     def _defineParams(self, form):
@@ -56,13 +56,12 @@ class ProtCryocarePrepareTrainingData(EMProtocol):
 
     # --------------------------- STEPS functions ------------------------------
     def _insertAllSteps(self):
-        # Insert processing steps
         self._insertFunctionStep('prepareTrainingDataStep')
         self._insertFunctionStep('runDataExtraction')
         self._insertFunctionStep('createOutputStep')
 
     def prepareTrainingDataStep(self):
-        mkdir(join(self._getExtraPath('train_data')))
+        mkdir(self._getExtraPath('train_data'))
         config = {
             'even': self.evenTomo.get().getFileName(),
             'odd': self.oddTomo.get().getFileName(),
@@ -71,15 +70,12 @@ class ProtCryocarePrepareTrainingData(EMProtocol):
             'split': self.split.get(),
             'path': self._getExtraPath('train_data')
         }
-        path = join(self._getExtraPath(), 'train_data_config.json')
-        self.config_path = params.String(path)
+        self.config_path = params.String(join(self._getExtraPath(), 'train_data_config.json'))
         with open(self.config_path.get(), 'w+') as f:
             json.dump(config, f, indent=2)
 
     def runDataExtraction(self):
         Plugin.runCryocare(self, 'cryoCARE_extract_train_data.py', '--conf {}'.format(self.config_path.get()))
-        # CryocareTrainData(self._getExtraPath('train_data', 'train_data.npz'))
-        # CryocareTrainData(self._getExtraPath('train_data', 'mean_std.npz'))
 
     def createOutputStep(self):
         train_data = CryocareTrainData(train_data=self._getExtraPath('train_data', 'train_data.npz'),
@@ -88,7 +84,6 @@ class ProtCryocarePrepareTrainingData(EMProtocol):
 
     # --------------------------- INFO functions -----------------------------------
     def _summary(self):
-        """ Summarize what the protocol has done"""
         summary = []
 
         if self.isFinished():
@@ -97,9 +92,19 @@ class ProtCryocarePrepareTrainingData(EMProtocol):
 
     def _validate(self):
         validateMsgs = []
-        if self.split.get() > 1.0:
+
+        if self.patch_shape.get() % 2 != 0:
+            validateMsgs.append('Patch shape has to be an even number.')
+
+        if self.num_slices.get() <= 0:
+            validateMsgs.append('Number of training pairs has to be > 0.')
+
+        if self.split.get() >= 1.0:
             validateMsgs.append('Split has to be < 1.0.')
-        # TODO: Validate everything
+
+        if self.split.get() <= 0.0:
+            validateMsgs.append('Split has to be > 0.0.')
+
         return validateMsgs
 
     def _citations(self):
