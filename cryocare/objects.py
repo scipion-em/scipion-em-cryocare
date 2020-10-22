@@ -23,6 +23,7 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
+from os.path import join
 
 import pyworkflow.object as pwobj
 from pwem import EMObject
@@ -60,3 +61,15 @@ class CryocareTrainData(EMObject):
 
     def __str__(self):
         return "CryoCARE Train Data (path=%s)" % self.getPath()
+
+class CryocareModel(EMObject):
+    def __init__(self, basedir=None, model_name=None, **kwargs):
+        EMObject.__init__(self, **kwargs)
+        self._basedir = pwobj.String(basedir)
+        self._model_name= pwobj.String(model_name)
+
+    def getPath(self):
+        return join(self._basedir.get(), self._model.get())
+
+    def __str__(self):
+        return "CryoCARE Model (path=%s)" % self.getPath()
