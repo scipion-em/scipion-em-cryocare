@@ -43,7 +43,7 @@ tomograms followed by per-pixel averaging."""
                       important=True,
                       help='Select a trained cryoCARE model.')
 
-        form.addParam('output_name', params.String,
+        form.addParam('output_name', params.StringParam,
                       default='denoised.mrc',
                       label='Output File Name',
                       help='Name of the denoised tomogram.')
