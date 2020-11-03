@@ -10,7 +10,7 @@ from cryocare import Plugin
 from cryocare.objects import CryocareTrainData
 
 
-class ProtCryocarePrepareTrainingData(EMProtocol):
+class ProtCryoCAREPrepareTrainingData(EMProtocol):
     """Operate the data to make it be expressed as expected by cryoCARE net."""
 
     _label = 'CryoCARE Training Data Extraction'

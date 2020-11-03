@@ -9,7 +9,7 @@ from cryocare import Plugin
 from cryocare.objects import CryocareTrainData, CryocareModel
 
 
-class ProtCryocareTraining(EMProtocol):
+class ProtCryoCARETraining(EMProtocol):
     """Use two data-independent reconstructed tomograms to train a 3D cryo-CARE network."""
 
     _label = 'CryoCARE Training'
