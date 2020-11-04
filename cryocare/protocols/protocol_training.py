@@ -50,7 +50,7 @@ class ProtCryocareTraining(EMProtocol):
                       label='Convolution kernel size',
                       help='Size of the convolution kernels used in the U-Net.')
         form.addParam('unet_n_depth', IntParam,
-                      default=3,
+                      default=2,
                       label='U-Net depth',
                       help='Depth of the U-Net.')
         form.addParam('unet_n_first', IntParam,
@@ -100,7 +100,7 @@ class ProtCryocareTraining(EMProtocol):
     def _validate(self):
         validateMsgs = []
 
-        if not exists(self.train_data.get()):
+        if not self.train_data.get():
             validateMsgs.append('Please select some training data.')
 
         if self.epochs.get() <= 0:
@@ -120,3 +120,5 @@ class ProtCryocareTraining(EMProtocol):
 
         if self.unet_n_first.get() <= 0:
             validateMsgs.append('Number of initial feature channels has to be > 0.')
+
+        return validateMsgs

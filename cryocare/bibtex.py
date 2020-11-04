@@ -27,20 +27,25 @@
 
 """
 @inproceedings{buchholz2019cryo,
-  title={Cryo-CARE: content-aware image restoration for cryo-transmission electron microscopy data},
-  author={Buchholz, Tim-Oliver and Jordan, Mareike and Pigino, Gaia and Jug, Florian},
-  booktitle={2019 IEEE 16th International Symposium on Biomedical Imaging (ISBI 2019)},
-  pages={502--506},
-  year={2019},
-  organization={IEEE}
+  title = "Cryo-CARE: content-aware image restoration for cryo-transmission electron microscopy data",
+  author = "Buchholz, Tim-Oliver and Jordan, Mareike and Pigino, Gaia and Jug, Florian",
+  booktitle = "2019 IEEE 16th International Symposium on Biomedical Imaging (ISBI 2019)",
+  pages = "502--506",
+  year = "2019",
+  organization = "IEEE",
+  doi = "http://doi.org/10.1109/ISBI.2019.8759519",
+  url = "https://ieeexplore.ieee.org/document/87595192",
 }
 
 @article{buchholz2019content,
-  title={Content-aware image restoration for electron microscopy.},
-  author={Buchholz, Tim-Oliver and Krull, Alexander and Shahidi, R{\'e}za and Pigino, Gaia and J{\'e}kely, G{\'a}sp{\'a}r and Jug, Florian},
-  journal={Methods in cell biology},
-  volume={152},
-  pages={277--289},
-  year={2019}
+  title = "Content-aware image restoration for electron microscopy.",
+  author = "Buchholz, Tim-Oliver and Krull, Alexander and Shahidi, R{\'e}za and Pigino, Gaia and J{\'e}kely, G{\'a}sp{\'a}r and Jug, Florian",
+  journal = "Methods in cell biology",
+  volume = "152",
+  pages = "277--289",
+  year = "2019",
+  publisher = "Cornell University",
+  url = "http://arxiv.org/abs/1810.05420",
+  doi = "http://arxiv.org/abs/1810.05420",
 }
 """

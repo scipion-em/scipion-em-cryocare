@@ -1,5 +1,5 @@
 import json
-from os.path import join
+from os.path import join, abspath
 
 from pwem.protocols import EMProtocol
 from pyworkflow.protocol import params
@@ -14,6 +14,7 @@ class ProtCryoCAREPrediction(EMProtocol):
 tomograms followed by per-pixel averaging."""
 
     _label = 'CryoCARE Prediction'
+    config_path = None
 
     # -------------------------- DEFINE param functions ----------------------
     def _defineParams(self, form):
@@ -36,6 +37,12 @@ tomograms followed by per-pixel averaging."""
                       important=True,
                       help='Tomogram reconstructed from the odd frames of the tilt'
                            'series movies.')
+
+        form.addParam('meanStdPath', params.PathParam,
+                      label='File mean_std',
+                      important=True,
+                      help='Path of the directory which contains file train_std.npz generated in '
+                           'the training data preparation.')
 
         form.addParam('model', params.PointerParam,
                       pointerClass='CryocareModel',
@@ -64,11 +71,12 @@ tomograms followed by per-pixel averaging."""
 
     def preparePredictStep(self):
         config = {
-            'model_name': self.model._model_name.get(),
-            'path': self.model._basedir.get(),
+            'model_name': self.model.get()._model_name.get(),
+            'path': self.model.get()._basedir.get(),
+            'meanStdPath': self.meanStdPath.get(),
             'even': self.even.get().getFileName(),
             'odd': self.odd.get().getFileName(),
-            'output_name': self.output_name.get(),
+            'output_name': abspath(self._getExtraPath(self.output_name.get())),
             'mrc_slice_shape': 3 * [self.mrc_slice_shape.get()]
         }
         self.config_path = params.String(join(self._getExtraPath(), 'prediction_config.json'))
@@ -79,7 +87,8 @@ tomograms followed by per-pixel averaging."""
         Plugin.runCryocare(self, 'cryoCARE_predict.py', '--conf {}'.format(self.config_path.get()))
 
     def createOutputStep(self):
-        denoised_tomo = Tomogram(location=join(self.model._basedir.get(), self.ouput_name.get()))
+        denoised_tomo = Tomogram(location=self._getExtraPath(self.output_name.get()))
+        denoised_tomo.copyInfo(self.even.get())
         self._defineOutputs(denoised_tomo=denoised_tomo)
 
     # --------------------------- INFO functions -----------------------------------
