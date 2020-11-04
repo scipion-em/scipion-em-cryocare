@@ -58,7 +58,6 @@ class ProtCryoCARETraining(EMProtocol):
                       label='Number of initial feature channels',
                       help='Number of initial feature channels.')
 
-
     def _insertAllSteps(self):
         self._insertFunctionStep('prepareTrainingStep')
         self._insertFunctionStep('trainingStep')
