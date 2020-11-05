@@ -76,15 +76,17 @@ class ProtCryoCARETraining(EMProtocol):
             'path': self._getExtraPath()
         }
 
-        self.config_path = params.String(join(self._getExtraPath(), 'train_config.json'))
-        with open(self.config_path.get(), 'w+') as f:
+        self._config_path = join(self._getExtraPath(), 'train_config.json')
+        with open(self._config_path, 'w+') as f:
             json.dump(config, f, indent=2)
 
     def trainingStep(self):
-        Plugin.runCryocare(self, 'cryoCARE_train.py', '--conf {}'.format(self.config_path.get()))
+        Plugin.runCryocare(self, 'cryoCARE_train.py', '--conf {}'.format(self._config_path))
 
     def createOutputStep(self):
-        model = CryocareModel(basedir=self._getExtraPath(), model_name=self.model_name.get())
+        model = CryocareModel(basedir=self._getExtraPath(),
+                              model_name=self.model_name.get(),
+                              mean_std=self.train_data.get().getMeanStd())
         self._defineOutputs(model=model)
 
 

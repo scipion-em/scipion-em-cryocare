@@ -3,18 +3,21 @@ from os.path import join, abspath
 
 from pwem.protocols import EMProtocol
 from pyworkflow.protocol import params
-from pyworkflow.utils import Message
+from pyworkflow.utils import Message, getParentFolder, removeBaseExt
 
 from cryocare import Plugin
 from tomo.objects import Tomogram
+from tomo.protocols import ProtTomoBase
+from cryocare.utils import CryocareUtils as ccutils
 
 
-class ProtCryoCAREPrediction(EMProtocol):
+class ProtCryoCAREPrediction(EMProtocol, ProtTomoBase):
     """Generate the final restored tomogram by applying the cryoCARE trained network to both
 tomograms followed by per-pixel averaging."""
 
     _label = 'CryoCARE Prediction'
-    config_path = None
+    _configPath = None
+    _outputFiles = []
 
     # -------------------------- DEFINE param functions ----------------------
     def _defineParams(self, form):
@@ -25,35 +28,24 @@ tomograms followed by per-pixel averaging."""
         # You need a params to belong to a section:
         form.addSection(label=Message.LABEL_INPUT)
         form.addParam('even', params.PointerParam,
-                      pointerClass='Tomogram',
+                      pointerClass='SetOfTomograms',
                       label='Tomogram (from even frames)',
                       important=True,
-                      help='Tomogram reconstructed from the even frames of the tilt'
+                      help='Set of tomogram reconstructed from the even frames of the tilt'
                            'series movies.')
 
         form.addParam('odd', params.PointerParam,
-                      pointerClass='Tomogram',
+                      pointerClass='SetOfTomograms',
                       label='Tomogram (from odd frames)',
                       important=True,
-                      help='Tomogram reconstructed from the odd frames of the tilt'
+                      help='Set of tomograms reconstructed from the odd frames of the tilt'
                            'series movies.')
-
-        form.addParam('meanStdPath', params.PathParam,
-                      label='File mean_std',
-                      important=True,
-                      help='Path of the directory which contains file train_std.npz generated in '
-                           'the training data preparation.')
 
         form.addParam('model', params.PointerParam,
                       pointerClass='CryocareModel',
                       label="cryoCARE Model",
                       important=True,
                       help='Select a trained cryoCARE model.')
-
-        form.addParam('output_name', params.StringParam,
-                      default='denoised.mrc',
-                      label='Output File Name',
-                      help='Name of the denoised tomogram.')
 
         form.addSection(label='Memory Management')
         form.addParam('mrc_slice_shape', params.IntParam,
@@ -65,31 +57,41 @@ tomograms followed by per-pixel averaging."""
     # --------------------------- STEPS functions ------------------------------
     def _insertAllSteps(self):
         # Insert processing steps
-        self._insertFunctionStep('preparePredictStep')
-        self._insertFunctionStep('predictStep')
+        for evenTomo, oddTomo in zip(self.even.get(), self.odd.get()):
+            self._insertFunctionStep('preparePredictStep', evenTomo, oddTomo)
+            self._insertFunctionStep('predictStep')
         self._insertFunctionStep('createOutputStep')
 
-    def preparePredictStep(self):
+    def preparePredictStep(self, evenTomo, oddTomo):
+        outputName = self._getOutputName(evenTomo)
+        self._outputFiles.append(outputName)
         config = {
             'model_name': self.model.get()._model_name.get(),
             'path': self.model.get()._basedir.get(),
-            'meanStdPath': self.meanStdPath.get(),
-            'even': self.even.get().getFileName(),
-            'odd': self.odd.get().getFileName(),
-            'output_name': abspath(self._getExtraPath(self.output_name.get())),
+            'meanStdPath': getParentFolder(self.model.get().getMeanStd()),
+            'even': evenTomo.getFileName(),
+            'odd': oddTomo.getFileName(),
+            'output_name': outputName,
             'mrc_slice_shape': 3 * [self.mrc_slice_shape.get()]
         }
-        self.config_path = params.String(join(self._getExtraPath(), 'prediction_config.json'))
-        with open(self.config_path.get(), 'w+') as f:
+        self._configPath = self._getTmpPath('prediction_config.json')
+        with open(self._configPath, 'w+') as f:
             json.dump(config, f, indent=2)
 
     def predictStep(self):
-        Plugin.runCryocare(self, 'cryoCARE_predict.py', '--conf {}'.format(self.config_path.get()))
+        Plugin.runCryocare(self, 'cryoCARE_predict.py', '--conf {}'.format(self._configPath))
 
     def createOutputStep(self):
-        denoised_tomo = Tomogram(location=self._getExtraPath(self.output_name.get()))
-        denoised_tomo.copyInfo(self.even.get())
-        self._defineOutputs(denoised_tomo=denoised_tomo)
+        outputSetOfTomo = self._createSetOfTomograms(suffix='_denoised')
+        outputSetOfTomo.copyInfo(self.even.get())
+
+        for i, inTomo in enumerate(self.even.get()):
+            tomo = Tomogram()
+            tomo.setLocation(self._outputFiles[i])
+            tomo.setSamplingRate(inTomo.getSamplingRate())
+            outputSetOfTomo.append(tomo)
+
+        self._defineOutputs(outputTomograms=outputSetOfTomo)
 
     # --------------------------- INFO functions -----------------------------------
     def _summary(self):
@@ -100,3 +102,16 @@ tomograms followed by per-pixel averaging."""
             summary.append(
                 "Tomogram denoising finished: {}".format(join(self.model._basedir.get(), self.ouput_name.get())))
         return summary
+
+    def _validate(self):
+        validateMsgs = []
+
+        msg = ccutils.checkInputTomoSetsSize(self.even.get(), self.odd.get())
+        if msg:
+            validateMsgs.append()
+        return validateMsgs
+
+    # --------------------------- UTIL functions -----------------------------------
+    def _getOutputName(self, inTomo):
+        outputName = removeBaseExt(inTomo.getFileName()) + '_denoised.mrc'
+        return abspath(self._getExtraPath(outputName.replace('_Even', '').replace('_Odd', '')))

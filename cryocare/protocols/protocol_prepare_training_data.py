@@ -6,11 +6,12 @@ import numpy as np
 
 from pwem.protocols import EMProtocol
 from pyworkflow.protocol import params, IntParam, FloatParam
-from pyworkflow.utils import Message
+from pyworkflow.utils import Message, makePath
 
 from cryocare import Plugin
 from cryocare.constants import TRAIN_DATA_DIR, TRAIN_DATA_FN, MEAN_STD_FN
 from cryocare.objects import CryocareTrainData
+from cryocare.utils import CryocareUtils as ccutils
 
 
 class ProtCryoCAREPrepareTrainingData(EMProtocol):
@@ -61,9 +62,7 @@ class ProtCryoCAREPrepareTrainingData(EMProtocol):
     # --------------------------- STEPS functions ------------------------------
     def _insertAllSteps(self):
         numTomo = 1
-        trainDataDir = self._getTrainDataDir()
-        if not exists(trainDataDir):
-            mkdir(trainDataDir)
+        makePath(self._getTrainDataDir())
 
         for evenTomo, oddTomo in zip(self.evenTomos.get(), self.oddTomos.get()):
             self._insertFunctionStep('prepareTrainingDataStep', evenTomo, oddTomo, numTomo)
@@ -113,6 +112,10 @@ class ProtCryoCAREPrepareTrainingData(EMProtocol):
     def _validate(self):
         validateMsgs = []
 
+        msg = ccutils.checkInputTomoSetsSize(self.evenTomos.get(), self.oddTomos.get())
+        if msg:
+            validateMsgs.append()
+
         if self.patch_shape.get() % 2 != 0:
             validateMsgs.append('Patch shape has to be an even number.')
 
@@ -126,9 +129,6 @@ class ProtCryoCAREPrepareTrainingData(EMProtocol):
             validateMsgs.append('Split has to be > 0.0.')
 
         return validateMsgs
-
-    def _citations(self):
-        return ['buchholz2019cryo', 'buchholz2019content']
 
     # --------------------------- UTIL functions -----------------------------------
     @staticmethod
