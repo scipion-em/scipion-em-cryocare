@@ -1,12 +1,11 @@
 import glob
 import json
-from os import mkdir, rename
-from os.path import join, exists
+from os.path import join
 import numpy as np
 
 from pwem.protocols import EMProtocol
-from pyworkflow.protocol import params, IntParam, FloatParam
-from pyworkflow.utils import Message, makePath
+from pyworkflow.protocol import params, IntParam, FloatParam, Positive, LT, GT
+from pyworkflow.utils import Message, makePath, moveFile
 
 from cryocare import Plugin
 from cryocare.constants import TRAIN_DATA_DIR, TRAIN_DATA_FN, MEAN_STD_FN
@@ -32,6 +31,7 @@ class ProtCryoCAREPrepareTrainingData(EMProtocol):
                       pointerClass='SetOfTomograms',
                       label='Tomogram (from even frames)',
                       important=True,
+                      allowsNull=False,
                       help='Set of tomograms reconstructed from the even frames of the tilt'
                            'series movies.')
 
@@ -39,6 +39,7 @@ class ProtCryoCAREPrepareTrainingData(EMProtocol):
                       pointerClass='SetOfTomograms',
                       label='Tomogram (from odd frames)',
                       important=True,
+                      allowsNull=False,
                       help='Set of tomogram reconstructed from the odd frames of the tilt'
                            'series movies.')
 
@@ -52,11 +53,13 @@ class ProtCryoCAREPrepareTrainingData(EMProtocol):
         form.addParam('num_slices', IntParam,
                       label='Number of training pairs to extract',
                       default=1200,
+                      validators=[Positive],
                       help='Number of sub-volumes to sample from the even and odd tomograms.')
 
         form.addParam('split', FloatParam,
                       label='Train-Validation Split',
                       default=0.9,
+                      validators=[GT(0), LT(1)],
                       help='Training- and validation-data split value.')
 
     # --------------------------- STEPS functions ------------------------------
@@ -87,8 +90,8 @@ class ProtCryoCAREPrepareTrainingData(EMProtocol):
     def runDataExtraction(self, numTomo):
         Plugin.runCryocare(self, 'cryoCARE_extract_train_data.py', '--conf {}'.format(self._configFile))
         # Rename the generated files to preserve them so they can be merged in createOutputStep
-        rename(self._getTrainDataFile(), self._getTmpPath('{:03d}_{}'.format(numTomo, TRAIN_DATA_FN)))
-        rename(self._getMeanStdFile(), self._getTmpPath('{:03d}_{}'.format(numTomo, MEAN_STD_FN)))
+        moveFile(self._getTrainDataFile(), self._getTmpPath('{:03d}_{}'.format(numTomo, TRAIN_DATA_FN)))
+        moveFile(self._getMeanStdFile(), self._getTmpPath('{:03d}_{}'.format(numTomo, MEAN_STD_FN)))
 
     def createOutputStep(self):
         trainDataFile = self._getTrainDataFile()
@@ -119,15 +122,6 @@ class ProtCryoCAREPrepareTrainingData(EMProtocol):
         if self.patch_shape.get() % 2 != 0:
             validateMsgs.append('Patch shape has to be an even number.')
 
-        if self.num_slices.get() <= 0:
-            validateMsgs.append('Number of training pairs has to be > 0.')
-
-        if self.split.get() >= 1.0:
-            validateMsgs.append('Split has to be < 1.0.')
-
-        if self.split.get() <= 0.0:
-            validateMsgs.append('Split has to be > 0.0.')
-
         return validateMsgs
 
     # --------------------------- UTIL functions -----------------------------------
@@ -135,7 +129,7 @@ class ProtCryoCAREPrepareTrainingData(EMProtocol):
     def _combineTrainDataFiles(pattern, outputFile):
         files = glob.glob(pattern)
         if len(files) == 1:
-            rename(files[0], outputFile)
+            moveFile(files[0], outputFile)
         else:
             trainingFiles = [np.load(file) for file in files]
             np.save(outputFile, np.concatenate(trainingFiles))

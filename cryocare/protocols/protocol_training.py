@@ -2,7 +2,7 @@ import json
 from os.path import join, exists
 
 from pwem.protocols import EMProtocol, StringParam
-from pyworkflow.protocol import IntParam, PointerParam, FloatParam, params
+from pyworkflow.protocol import IntParam, PointerParam, FloatParam, params, GT, Positive
 from pyworkflow.utils import Message
 
 from cryocare import Plugin
@@ -26,24 +26,24 @@ class ProtCryoCARETraining(EMProtocol):
                       pointerClass='CryocareTrainData',
                       label='Training data',
                       important=True,
-                      help = 'Training data extracted from even and odd tomograms.')
+                      allowsNull=False,
+                      help='Training data extracted from even and odd tomograms.')
         form.addSection(label='Training Parameters')
         form.addParam('epochs', IntParam,
                       default=200,
                       label='Training epochs',
+                      validators=[GT(0)],
                       help='Number of epochs for which the network is trained.')
         form.addParam('batch_size', IntParam,
                       default=16,
                       label='Batch size',
+                      validators=[GT(0)],
                       help='Size of the training batch.')
         form.addParam('learning_rate', FloatParam,
                       default=0.0004,
                       label='Learning rate',
+                      validators=[GT(0)],
                       help='Training learning rate.')
-        form.addParam('model_name', StringParam,
-                      default='model',
-                      label='Model name',
-                      help='Name of the model.')
         form.addSection(label='U-Net Parameters')
         form.addParam('unet_kern_size', IntParam,
                       default=3,
@@ -52,11 +52,18 @@ class ProtCryoCARETraining(EMProtocol):
         form.addParam('unet_n_depth', IntParam,
                       default=2,
                       label='U-Net depth',
+                      validators=[GT(0)],
                       help='Depth of the U-Net.')
         form.addParam('unet_n_first', IntParam,
                       default=16,
                       label='Number of initial feature channels',
+                      validators=[GT(0)],
                       help='Number of initial feature channels.')
+        form.addHidden(params.GPU_LIST, params.StringParam, default='0',
+                       expertLevel=params.LEVEL_ADVANCED,
+                       label="Choose GPU IDs",
+                       help="GPU ID, normally it is 0. "
+                            "TODO: Document better GPU IDs and threads. ")
 
     def _insertAllSteps(self):
         self._insertFunctionStep('prepareTrainingStep')
@@ -72,7 +79,7 @@ class ProtCryoCARETraining(EMProtocol):
             'unet_n_depth': self.unet_n_depth.get(),
             'unet_n_first': self.unet_n_first.get(),
             'learning_rate': self.learning_rate.get(),
-            'model_name': self.model_name.get(),
+            'model_name': 'cryoCARE_model',
             'path': self._getExtraPath()
         }
 
@@ -89,7 +96,6 @@ class ProtCryoCARETraining(EMProtocol):
                               mean_std=self.train_data.get().getMeanStd())
         self._defineOutputs(model=model)
 
-
     # --------------------------- INFO functions -----------------------------------
     def _summary(self):
         summary = []
@@ -101,25 +107,7 @@ class ProtCryoCARETraining(EMProtocol):
     def _validate(self):
         validateMsgs = []
 
-        if not self.train_data.get():
-            validateMsgs.append('Please select some training data.')
-
-        if self.epochs.get() <= 0:
-            validateMsgs.append('Epochs has to be > 0.')
-
-        if self.batch_size.get() <= 0:
-            validateMsgs.append('Batch size has to be > 0.')
-
-        if self.learning_rate.get() <= 0:
-            validateMsgs.append('The learning rate has to be > 0.')
-
         if self.unet_kern_size.get() % 2 != 1:
             validateMsgs.append('Convolution kernel size has to be an odd number.')
-
-        if self.unet_n_depth.get() <= 0:
-            validateMsgs.append('U-Net depth has to be > 0.')
-
-        if self.unet_n_first.get() <= 0:
-            validateMsgs.append('Number of initial feature channels has to be > 0.')
 
         return validateMsgs

@@ -31,6 +31,7 @@ tomograms followed by per-pixel averaging."""
                       pointerClass='SetOfTomograms',
                       label='Tomogram (from even frames)',
                       important=True,
+                      allowsNull=False,
                       help='Set of tomogram reconstructed from the even frames of the tilt'
                            'series movies.')
 
@@ -38,6 +39,7 @@ tomograms followed by per-pixel averaging."""
                       pointerClass='SetOfTomograms',
                       label='Tomogram (from odd frames)',
                       important=True,
+                      allowsNull=False,
                       help='Set of tomograms reconstructed from the odd frames of the tilt'
                            'series movies.')
 
@@ -45,6 +47,7 @@ tomograms followed by per-pixel averaging."""
                       pointerClass='CryocareModel',
                       label="cryoCARE Model",
                       important=True,
+                      allowsNull=False,
                       help='Select a trained cryoCARE model.')
 
         form.addSection(label='Memory Management')
