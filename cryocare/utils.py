@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # **************************************************************************
 # *
 # * Authors:     you (you@yourinstitution.email)
@@ -21,12 +20,24 @@
 # * 02111-1307  USA
 # *
 # *  All comments concerning this program package may be sent to the
-# *  e-mail address 'you@yourinstitution.email'
+# *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
+from pwem.emlib.image import ImageHandler
 
-from .protocol_training import ProtCryoCARETraining
-from .protocol_predict import ProtCryoCAREPrediction
-from .protocol_prepare_training_data import ProtCryoCAREPrepareTrainingData
-from .protocol_load_train_data import ProtCryoCARELoadTrainData
-from .protocol_load_model import ProtCryoCARELoadModel
+
+class CryocareUtils:
+    @staticmethod
+    def checkInputTomoSetsSize(evenTomoSet, oddTomoSet):
+        message = ''
+        xe, ye, ze = evenTomoSet.getDimensions()
+        xo, yo, zo = oddTomoSet.getDimensions()
+        ne = evenTomoSet.getSize()
+        no = oddTomoSet.getSize()
+        if (xe, ye, ze, ne) != (xo, yo, zo, no):
+            message = ('Size of even and odd set of tomograms must be the same:\n'
+                       'Even --> (x, y, z, n) = ({xe}, {ye}, {ze}, {ne})\n'
+                       'Odd  --> (x, y, z, n) = ({xo}, {yo}, {zo}, {no})'.format(
+                        xe=xe, ye=ye, ze=ze, ne=ne, xo=xo, yo=yo, zo=zo, no=no))
+
+        return message

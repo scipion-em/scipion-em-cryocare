@@ -23,31 +23,17 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
+from os.path import join
 
 import pyworkflow.object as pwobj
 from pwem import EMObject
 
 
-class CryocareModel(EMObject):
-    """ Simple class to store the Cryocare training model path. """
-    def __init__(self, path=None, **kwargs):
-        EMObject.__init__(self, **kwargs)
-        self._path = pwobj.String(path)
-
-    def getPath(self):
-        return self._path.get()
-
-    def setPath(self, path):
-        self._path.set(path)
-
-    def __str__(self):
-        return "CryocareModel (path=%s)" % self.getPath()
-
 class CryocareTrainData(EMObject):
     def __init__(self, train_data=None, mean_std=None, **kwargs):
         EMObject.__init__(self, **kwargs)
-        self._train_data= pwobj.String(train_data)
-        self._mean_std= pwobj.String(mean_std)
+        self._train_data = pwobj.String(train_data)
+        self._mean_std = pwobj.String(mean_std)
 
     def getTrainData(self):
         return self._train_data.get()
@@ -60,3 +46,23 @@ class CryocareTrainData(EMObject):
 
     def __str__(self):
         return "CryoCARE Train Data (path=%s)" % self.getPath()
+
+
+class CryocareModel(EMObject):
+    def __init__(self, basedir=None, model_name=None, mean_std=None, **kwargs):
+        EMObject.__init__(self, **kwargs)
+        self._basedir = pwobj.String(basedir)
+        self._model_name = pwobj.String(model_name)
+        self._mean_std = pwobj.String(mean_std)
+
+    def getPath(self):
+        return join(self._basedir.get(), self._model_name.get())
+
+    def getMeanStd(self):
+        return self._mean_std.get()
+
+    def getModelName(self):
+        return self._model_name.get()
+
+    def __str__(self):
+        return "CryoCARE Model (path=%s)" % self.getPath()
