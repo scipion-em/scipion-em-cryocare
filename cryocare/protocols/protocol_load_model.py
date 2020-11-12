@@ -1,12 +1,8 @@
-import json
-from os.path import join, exists
 
-from pwem.protocols import EMProtocol, StringParam, FileParam
-from pyworkflow.protocol import IntParam, PointerParam, FloatParam, params
+from pwem.protocols import EMProtocol
+from pyworkflow.protocol import PathParam, FileParam
 from pyworkflow.utils import Message
-
-from cryocare import Plugin
-from cryocare.objects import CryocareTrainData, CryocareModel
+from cryocare.objects import CryocareModel
 
 
 class ProtCryoCARELoadModel(EMProtocol):
@@ -22,27 +18,31 @@ class ProtCryoCARELoadModel(EMProtocol):
         """
         # You need a params to belong to a section:
         form.addSection(label=Message.LABEL_INPUT)
-        form.addParam('basedir', FileParam,
+        form.addParam('basedir', PathParam,
                       label='Basedir',
                       important=True,
-                      help='Basedirectory of the trained cryoCARE model.')
-        form.addParam('model_name', StringParam,
-                      label='Model name',
+                      allowsNull=False,
+                      help='Base directory of the trained cryoCARE model.')
+        form.addParam('meanStd', FileParam,
+                      label='Normalization file (mean_std)',
                       important=True,
-                      help='Name of the cryoCARE model.')
+                      allowsNull=False,
+                      help='mean_std.npz file generated when preparing the training data.')
 
     def _insertAllSteps(self):
         self._insertFunctionStep('createOutputStep')
 
     def createOutputStep(self):
-        model = CryocareModel(basedir=self.basedir.get(), model_name=self.model_name.get())
+        model = CryocareModel(basedir=self.basedir.get(), mean_std=self.meanStd.get())
         self._defineOutputs(model=model)
-
 
     # --------------------------- INFO functions -----------------------------------
     def _summary(self):
         summary = []
 
         if self.isFinished():
-            summary.append("Loaded model {} from {}.".format(self.model_name.get(), self.basedir.get()))
+            summary.append("Loaded training model info:\n"
+                           "model_dir = *{}*\n"
+                           "normalization_file = *{}*".format
+                           (self.basedir.get(), self.meanStd.get()))
         return summary

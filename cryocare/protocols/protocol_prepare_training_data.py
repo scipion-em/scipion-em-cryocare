@@ -4,11 +4,11 @@ from os.path import join
 import numpy as np
 
 from pwem.protocols import EMProtocol
-from pyworkflow.protocol import params, IntParam, FloatParam, Positive, LT, GT
+from pyworkflow.protocol import params, IntParam, FloatParam, Positive, LT, GT, LEVEL_ADVANCED
 from pyworkflow.utils import Message, makePath, moveFile
 
 from cryocare import Plugin
-from cryocare.constants import TRAIN_DATA_DIR, TRAIN_DATA_FN, MEAN_STD_FN
+from cryocare.constants import TRAIN_DATA_DIR, TRAIN_DATA_FN, MEAN_STD_FN, TRAIN_DATA_CONFIG
 from cryocare.objects import CryocareTrainData
 from cryocare.utils import CryocareUtils as ccutils
 
@@ -29,7 +29,7 @@ class ProtCryoCAREPrepareTrainingData(EMProtocol):
         form.addSection(label=Message.LABEL_INPUT)
         form.addParam('evenTomos', params.PointerParam,
                       pointerClass='SetOfTomograms',
-                      label='Tomogram (from even frames)',
+                      label='Even tomograms',
                       important=True,
                       allowsNull=False,
                       help='Set of tomograms reconstructed from the even frames of the tilt'
@@ -37,7 +37,7 @@ class ProtCryoCAREPrepareTrainingData(EMProtocol):
 
         form.addParam('oddTomos', params.PointerParam,
                       pointerClass='SetOfTomograms',
-                      label='Tomogram (from odd frames)',
+                      label='Odd tomograms',
                       important=True,
                       allowsNull=False,
                       help='Set of tomogram reconstructed from the odd frames of the tilt'
@@ -46,9 +46,12 @@ class ProtCryoCAREPrepareTrainingData(EMProtocol):
         form.addSection(label='Config Parameters')
         form.addParam('patch_shape', IntParam,
                       label='Side length of the training volumes',
-                      default=72,
+                      default=64,
                       help='Corresponding sub-volumes pairs of the provided 3D shape '
-                           'are extracted from the even and odd tomograms.')
+                           'are extracted from the even and odd tomograms. The higher it is,'
+                           'the higher net depth is required for training and the longer it '
+                           'takes. Its value also depends on the resolution of the input tomograms, '
+                           'being a higher patch size required for higher resolution.')
 
         form.addParam('num_slices', IntParam,
                       label='Number of training pairs to extract',
@@ -60,12 +63,14 @@ class ProtCryoCAREPrepareTrainingData(EMProtocol):
                       label='Train-Validation Split',
                       default=0.9,
                       validators=[GT(0), LT(1)],
-                      help='Training- and validation-data split value.')
+                      expertLevel=LEVEL_ADVANCED,
+                      help='Training and validation data split value.')
 
     # --------------------------- STEPS functions ------------------------------
     def _insertAllSteps(self):
         numTomo = 1
         makePath(self._getTrainDataDir())
+        makePath(self._getTrainDataConfDir())
 
         for evenTomo, oddTomo in zip(self.evenTomos.get(), self.oddTomos.get()):
             self._insertFunctionStep('prepareTrainingDataStep', evenTomo, oddTomo, numTomo)
@@ -83,7 +88,7 @@ class ProtCryoCAREPrepareTrainingData(EMProtocol):
             'split': self.split.get(),
             'path': self._getExtraPath('train_data')
         }
-        self._configFile = self._getTmpPath('train_data_config_{:03d}.json'.format(numTomo))
+        self._configFile = join(self._getTrainDataConfDir(), '{}_{:03d}.json'.format(TRAIN_DATA_CONFIG, numTomo))
         with open(self._configFile, 'w+') as f:
             json.dump(config, f, indent=2)
 
@@ -101,16 +106,23 @@ class ProtCryoCAREPrepareTrainingData(EMProtocol):
         self._combineTrainDataFiles(self._getTmpPath('*' + MEAN_STD_FN), meanStdFile)  # mea_std files
         # Generate a train data object containing the resulting data
         train_data = CryocareTrainData(train_data=trainDataFile,
-                                       mean_std=meanStdFile)
+                                       mean_std=meanStdFile,
+                                       patch_size=self.patch_shape.get())
         self._defineOutputs(train_data=train_data)
 
     # --------------------------- INFO functions -----------------------------------
-    # def _summary(self):
-    #     summary = []
-    #
-    #     if self.isFinished():
-    #         summary.append("Saved config file to: {}".format(self.config_path.get()))
-    #     return summary
+    def _summary(self):
+        summary = []
+
+        if self.isFinished():
+            summary.append("Generated training data info:\n"
+                           "train_data_file = *{}*\n"
+                           "normalization_file = *{}*\n"
+                           "patch_size = *{}*".format(
+                            self._getTrainDataFile(),
+                            self._getMeanStdFile(),
+                            self.patch_shape.get()))
+        return summary
 
     def _validate(self):
         validateMsgs = []
@@ -143,3 +155,5 @@ class ProtCryoCAREPrepareTrainingData(EMProtocol):
     def _getMeanStdFile(self):
         return join(self._getTrainDataDir(), MEAN_STD_FN)
 
+    def _getTrainDataConfDir(self):
+        return self._getExtraPath(TRAIN_DATA_CONFIG)
