@@ -4,6 +4,7 @@ from os.path import abspath, join
 from pwem.protocols import EMProtocol
 from pyworkflow.protocol import params
 from pyworkflow.utils import Message, getParentFolder, removeBaseExt, makePath
+from scipion.constants import PYTHON
 
 from cryocare import Plugin
 from tomo.objects import Tomogram
@@ -88,7 +89,7 @@ tomograms followed by per-pixel averaging."""
             json.dump(config, f, indent=2)
 
     def predictStep(self):
-        Plugin.runCryocare(self, 'cryoCARE_predict.py', '--conf {}'.format(self._configPath))
+        Plugin.runCryocare(self, PYTHON, '$(which cryoCARE_predict.py) --conf {}'.format(self._configPath))
 
     def createOutputStep(self):
         outputSetOfTomo = self._createSetOfTomograms(suffix='_denoised')

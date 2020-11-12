@@ -6,6 +6,7 @@ import numpy as np
 from pwem.protocols import EMProtocol
 from pyworkflow.protocol import params, IntParam, FloatParam, Positive, LT, GT, LEVEL_ADVANCED
 from pyworkflow.utils import Message, makePath, moveFile
+from scipion.constants import PYTHON
 
 from cryocare import Plugin
 from cryocare.constants import TRAIN_DATA_DIR, TRAIN_DATA_FN, MEAN_STD_FN, TRAIN_DATA_CONFIG
@@ -93,7 +94,7 @@ class ProtCryoCAREPrepareTrainingData(EMProtocol):
             json.dump(config, f, indent=2)
 
     def runDataExtraction(self, numTomo):
-        Plugin.runCryocare(self, 'cryoCARE_extract_train_data.py', '--conf {}'.format(self._configFile))
+        Plugin.runCryocare(self, PYTHON, '$(which cryoCARE_extract_train_data.py) --conf {}'.format(self._configFile))
         # Rename the generated files to preserve them so they can be merged in createOutputStep
         moveFile(self._getTrainDataFile(), self._getTmpPath('{:03d}_{}'.format(numTomo, TRAIN_DATA_FN)))
         moveFile(self._getMeanStdFile(), self._getTmpPath('{:03d}_{}'.format(numTomo, MEAN_STD_FN)))

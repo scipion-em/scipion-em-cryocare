@@ -5,6 +5,7 @@ from os.path import join
 from pwem.protocols import EMProtocol
 from pyworkflow.protocol import IntParam, PointerParam, FloatParam, params, GT, LEVEL_ADVANCED, GE
 from pyworkflow.utils import Message
+from scipion.constants import PYTHON
 
 from cryocare import Plugin
 from cryocare.constants import CRYOCARE_MODEL
@@ -108,7 +109,7 @@ class ProtCryoCARETraining(EMProtocol):
             json.dump(config, f, indent=2)
 
     def trainingStep(self):
-        Plugin.runCryocare(self, 'cryoCARE_train.py', '--conf {}'.format(self._configPath))
+        Plugin.runCryocare(self, PYTHON, '$(which cryoCARE_train.py) --conf {}'.format(self._configPath))
 
     def createOutputStep(self):
         model = CryocareModel(basedir=self._getExtraPath(CRYOCARE_MODEL),
