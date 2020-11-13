@@ -1,16 +1,17 @@
 import json
+from os import remove
 from os.path import abspath, join
 
 from pwem.protocols import EMProtocol
 from pyworkflow.protocol import params
-from pyworkflow.utils import Message, getParentFolder, removeBaseExt, makePath
+from pyworkflow.utils import Message, getParentFolder, removeBaseExt, makePath, copyFile
 from scipion.constants import PYTHON
 
 from cryocare import Plugin
 from tomo.objects import Tomogram
 from tomo.protocols import ProtTomoBase
 
-from cryocare.constants import PREDICT_CONFIG, CRYOCARE_MODEL
+from cryocare.constants import PREDICT_CONFIG, CRYOCARE_MODEL, MEAN_STD_FN
 from cryocare.utils import CryocareUtils as ccutils
 
 
@@ -77,8 +78,7 @@ tomograms followed by per-pixel averaging."""
         self._outputFiles.append(outputName)
         config = {
             'model_name': CRYOCARE_MODEL,
-            'path': self.model.get()._basedir.get(),
-            'meanStdPath': getParentFolder(self.model.get().getMeanStd()),
+            'path': self.model.get().getPath(),
             'even': evenTomo.getFileName(),
             'odd': oddTomo.getFileName(),
             'output_name': outputName,
@@ -89,7 +89,13 @@ tomograms followed by per-pixel averaging."""
             json.dump(config, f, indent=2)
 
     def predictStep(self):
-        Plugin.runCryocare(self, PYTHON, '$(which cryoCARE_predict.py) --conf {}'.format(self._configPath))
+        # cryoCARE_predict.py expects the mean_std.npz file to be in the same directory as the model
+        expectedMeanStdFile = join(self.model.get().getPath(), MEAN_STD_FN)
+        copyFile(self.model.get().getMeanStd(), expectedMeanStdFile)
+        # Run cryoCARE
+        Plugin.runCryocare(self, PYTHON, '$(which cryoCARE_predict.py) --conf {}'.format(abspath(self._configPath)))
+        # Remove copied file
+        remove(expectedMeanStdFile)
 
     def createOutputStep(self):
         outputSetOfTomo = self._createSetOfTomograms(suffix='_denoised')

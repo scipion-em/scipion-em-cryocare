@@ -52,7 +52,7 @@ class TestCryoCARE(BaseTest):
         output = getattr(protTraining, 'model', None)
         # Check generated model
         self.assertEqual(type(output), CryocareModel)
-        self.assertEqual(output.getPath(), protTraining._getExtraPath(CRYOCARE_MODEL))
+        self.assertEqual(output.getPath(), protTraining._getExtraPath())
         self.assertEqual(output.getMeanStd(), protPrepTrainingData.train_data.getMeanStd())
         # Check files generated
         self.assertTrue(exists(protTraining._getExtraPath('train_config.json')))
