@@ -1,13 +1,17 @@
 import json
-from os.path import join, abspath
+from os import remove
+from os.path import abspath, join
 
 from pwem.protocols import EMProtocol
 from pyworkflow.protocol import params
-from pyworkflow.utils import Message, getParentFolder, removeBaseExt
+from pyworkflow.utils import Message, getParentFolder, removeBaseExt, makePath, copyFile
+from scipion.constants import PYTHON
 
 from cryocare import Plugin
 from tomo.objects import Tomogram
 from tomo.protocols import ProtTomoBase
+
+from cryocare.constants import PREDICT_CONFIG, CRYOCARE_MODEL, MEAN_STD_FN
 from cryocare.utils import CryocareUtils as ccutils
 
 
@@ -29,7 +33,7 @@ tomograms followed by per-pixel averaging."""
         form.addSection(label=Message.LABEL_INPUT)
         form.addParam('even', params.PointerParam,
                       pointerClass='SetOfTomograms',
-                      label='Tomogram (from even frames)',
+                      label='Even tomograms',
                       important=True,
                       allowsNull=False,
                       help='Set of tomogram reconstructed from the even frames of the tilt'
@@ -37,7 +41,7 @@ tomograms followed by per-pixel averaging."""
 
         form.addParam('odd', params.PointerParam,
                       pointerClass='SetOfTomograms',
-                      label='Tomogram (from odd frames)',
+                      label='Odd tomograms',
                       important=True,
                       allowsNull=False,
                       help='Set of tomograms reconstructed from the odd frames of the tilt'
@@ -59,30 +63,39 @@ tomograms followed by per-pixel averaging."""
 
     # --------------------------- STEPS functions ------------------------------
     def _insertAllSteps(self):
+        numTomo = 1
+        makePath(self._getPredictConfDir())
         # Insert processing steps
         for evenTomo, oddTomo in zip(self.even.get(), self.odd.get()):
-            self._insertFunctionStep('preparePredictStep', evenTomo, oddTomo)
+            self._insertFunctionStep('preparePredictStep', evenTomo, oddTomo, numTomo)
             self._insertFunctionStep('predictStep')
+            numTomo += 1
+
         self._insertFunctionStep('createOutputStep')
 
-    def preparePredictStep(self, evenTomo, oddTomo):
+    def preparePredictStep(self, evenTomo, oddTomo, numTomo):
         outputName = self._getOutputName(evenTomo)
         self._outputFiles.append(outputName)
         config = {
-            'model_name': self.model.get()._model_name.get(),
-            'path': self.model.get()._basedir.get(),
-            'meanStdPath': getParentFolder(self.model.get().getMeanStd()),
+            'model_name': CRYOCARE_MODEL,
+            'path': self.model.get().getPath(),
             'even': evenTomo.getFileName(),
             'odd': oddTomo.getFileName(),
             'output_name': outputName,
             'mrc_slice_shape': 3 * [self.mrc_slice_shape.get()]
         }
-        self._configPath = self._getTmpPath('prediction_config.json')
+        self._configPath = join(self._getPredictConfDir(), '{}_{:03d}.json'.format(PREDICT_CONFIG, numTomo))
         with open(self._configPath, 'w+') as f:
             json.dump(config, f, indent=2)
 
     def predictStep(self):
-        Plugin.runCryocare(self, 'cryoCARE_predict.py', '--conf {}'.format(self._configPath))
+        # cryoCARE_predict.py expects the mean_std.npz file to be in the same directory as the model
+        expectedMeanStdFile = join(self.model.get().getPath(), MEAN_STD_FN)
+        copyFile(self.model.get().getMeanStd(), expectedMeanStdFile)
+        # Run cryoCARE
+        Plugin.runCryocare(self, PYTHON, '$(which cryoCARE_predict.py) --conf {}'.format(abspath(self._configPath)))
+        # Remove copied file
+        remove(expectedMeanStdFile)
 
     def createOutputStep(self):
         outputSetOfTomo = self._createSetOfTomograms(suffix='_denoised')
@@ -103,7 +116,7 @@ tomograms followed by per-pixel averaging."""
 
         if self.isFinished():
             summary.append(
-                "Tomogram denoising finished: {}".format(join(self.model._basedir.get(), self.ouput_name.get())))
+                "Tomogram denoising finished.")
         return summary
 
     def _validate(self):
@@ -118,3 +131,6 @@ tomograms followed by per-pixel averaging."""
     def _getOutputName(self, inTomo):
         outputName = removeBaseExt(inTomo.getFileName()) + '_denoised.mrc'
         return abspath(self._getExtraPath(outputName.replace('_Even', '').replace('_Odd', '')))
+
+    def _getPredictConfDir(self):
+        return self._getExtraPath(PREDICT_CONFIG)

@@ -82,8 +82,14 @@ class Plugin(pwem.Plugin):
         installationCmd += 'conda activate %s && ' % CRYOCARE_ENV_NAME
 
         # Install non-conda required packages
+        installationCmd += 'pip install "numpy<1.19.0,>=1.16.0"'
         installationCmd += 'pip install mrcfile && '
         installationCmd += 'pip install csbdeep && '
+        installationCmd += 'pip install "h5py<3.0.0" '
+        # I had the same issue and was able to fix this by setting h5py < 3.0.0.
+        # Looks like here was a 3.0 release of h5py recently where they changed how strings are stored/read.
+        # https://github.com/keras-team/keras/issues/14265
+
 
         # Install cryoCARE
         installationCmd += 'pip install cryoCARE &&'

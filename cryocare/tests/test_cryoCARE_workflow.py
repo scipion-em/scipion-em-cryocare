@@ -2,6 +2,7 @@ from os.path import exists
 from pyworkflow.tests import BaseTest, setupTestProject
 import tomo.protocols
 from . import DataSet
+from ..constants import CRYOCARE_MODEL, MEAN_STD_FN, TRAIN_DATA_FN, TRAIN_DATA_CONFIG, TRAIN_DATA_DIR
 from ..objects import CryocareTrainData, CryocareModel
 from ..protocols import ProtCryoCAREPrediction, ProtCryoCAREPrepareTrainingData, ProtCryoCARETraining
 
@@ -30,9 +31,17 @@ class TestCryoCARE(BaseTest):
                                                 oddTomos=protImportOdd.outputTomograms)
         self.launchProtocol(protPrepTrainingData)
         output = getattr(protPrepTrainingData, 'train_data', None)
+
+        # Check generated object
         self.assertEqual(type(output), CryocareTrainData)
-        self.assertTrue(exists(protPrepTrainingData._getExtraPath('train_data', 'mean_std.npz')))
-        self.assertTrue(exists(protPrepTrainingData._getExtraPath('train_data', 'train_data.npz')))
+        self.assertEqual(output.getTrainData(), protPrepTrainingData._getExtraPath(TRAIN_DATA_DIR, TRAIN_DATA_FN))
+        self.assertEqual(output.getMeanStd(), protPrepTrainingData._getExtraPath(TRAIN_DATA_DIR, MEAN_STD_FN))
+        self.assertEqual(output.getPatchSize(), 64)
+        # Check files generated
+        self.assertTrue(exists(protPrepTrainingData._getExtraPath(TRAIN_DATA_DIR, TRAIN_DATA_FN)))
+        self.assertTrue(exists(protPrepTrainingData._getExtraPath(TRAIN_DATA_DIR, MEAN_STD_FN)))
+        self.assertTrue(exists(protPrepTrainingData._getExtraPath(TRAIN_DATA_CONFIG,'training_data_config_001.json')))
+
         return protPrepTrainingData
 
     def _runTrainingData(self, protPrepTrainingData):
@@ -41,15 +50,18 @@ class TestCryoCARE(BaseTest):
 
         self.launchProtocol(protTraining)
         output = getattr(protTraining, 'model', None)
+        # Check generated model
         self.assertEqual(type(output), CryocareModel)
+        self.assertEqual(output.getPath(), protTraining._getExtraPath())
+        self.assertEqual(output.getMeanStd(), protPrepTrainingData.train_data.getMeanStd())
+        # Check files generated
         self.assertTrue(exists(protTraining._getExtraPath('train_config.json')))
-        self.assertTrue(exists(protTraining._getExtraPath('model', 'config.json')))
-        self.assertTrue(exists(protTraining._getExtraPath('model', 'weights_best.h5')))
-        self.assertTrue(exists(protTraining._getExtraPath('model', 'weights_last.h5')))
+        self.assertTrue(exists(protTraining._getExtraPath(CRYOCARE_MODEL, 'config.json')))
+        self.assertTrue(exists(protTraining._getExtraPath(CRYOCARE_MODEL, 'weights_best.h5')))
+        self.assertTrue(exists(protTraining._getExtraPath(CRYOCARE_MODEL, 'weights_last.h5')))
         return protTraining
 
     def _runPredict(self, protImportEven, protImportOdd, protPredict):
-        outputName = 'denoised_test.mrc'
         protPredict = self.newProtocol(ProtCryoCAREPrediction,
                                        even=protImportEven.outputTomograms,
                                        odd=protImportOdd.outputTomograms,
