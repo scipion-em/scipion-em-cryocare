@@ -18,7 +18,7 @@ class ProtCryoCAREPrepareTrainingData(EMProtocol):
     """Operate the data to make it be expressed as expected by cryoCARE net."""
 
     _label = 'CryoCARE Training Data Extraction'
-    _configFile = None
+    _configFile = []
 
     # -------------------------- DEFINE param functions ----------------------
     def _defineParams(self, form):
@@ -69,12 +69,12 @@ class ProtCryoCAREPrepareTrainingData(EMProtocol):
 
     # --------------------------- STEPS functions ------------------------------
     def _insertAllSteps(self):
-        numTomo = 1
+        numTomo = 0
         makePath(self._getTrainDataDir())
         makePath(self._getTrainDataConfDir())
 
         for evenTomo, oddTomo in zip(self.evenTomos.get(), self.oddTomos.get()):
-            self._insertFunctionStep('prepareTrainingDataStep', evenTomo, oddTomo, numTomo)
+            self._insertFunctionStep('prepareTrainingDataStep', evenTomo.getFileName(), oddTomo.getFileName(), numTomo)
             self._insertFunctionStep('runDataExtraction', numTomo)
             numTomo += 1
 
@@ -82,24 +82,28 @@ class ProtCryoCAREPrepareTrainingData(EMProtocol):
 
     def prepareTrainingDataStep(self, evenTomo, oddTomo, numTomo):
         config = {
-            'even': evenTomo.getFileName(),
-            'odd': oddTomo.getFileName(),
+            'even': evenTomo,
+            'odd': oddTomo,
             'patch_shape': 3 * [self.patch_shape.get()],
             'num_slices': self.num_slices.get(),
             'split': self.split.get(),
             'path': self._getExtraPath('train_data')
         }
-        self._configFile = join(self._getTrainDataConfDir(), '{}_{:03d}.json'.format(TRAIN_DATA_CONFIG, numTomo))
-        with open(self._configFile, 'w+') as f:
+        self._configFile.append(join(self._getTrainDataConfDir(), '{}_{:03d}.json'.format(TRAIN_DATA_CONFIG, numTomo)))
+        with open(self._configFile[numTomo], 'w+') as f:
             json.dump(config, f, indent=2)
 
     def runDataExtraction(self, numTomo):
-        Plugin.runCryocare(self, PYTHON, '$(which cryoCARE_extract_train_data.py) --conf {}'.format(self._configFile))
+        Plugin.runCryocare(self, PYTHON,
+                           '$(which cryoCARE_extract_train_data.py) --conf {}'.format(self._configFile[numTomo]))
         # Rename the generated files to preserve them so they can be merged in createOutputStep
         moveFile(self._getTrainDataFile(), self._getTmpPath('{:03d}_{}'.format(numTomo, TRAIN_DATA_FN)))
         moveFile(self._getMeanStdFile(), self._getTmpPath('{:03d}_{}'.format(numTomo, MEAN_STD_FN)))
 
     def createOutputStep(self):
+        # if numTomo > 1:
+        #     configList = glob.glob(self._getExtraPath(join(TRAIN_DATA_CONFIG, '*.json')))
+        #     moveFile(configList[0], )
         trainDataFile = self._getTrainDataFile()
         meanStdFile = self._getMeanStdFile()
         # Combine all train_data and mean_std files into one
@@ -144,8 +148,22 @@ class ProtCryoCAREPrepareTrainingData(EMProtocol):
         if len(files) == 1:
             moveFile(files[0], outputFile)
         else:
-            trainingFiles = [np.load(file) for file in files]
-            np.save(outputFile, np.concatenate(trainingFiles))
+            # Create a dictionary with the data fields contained in each npz file
+            dataDict = {}
+            with np.load(files[0]) as data:
+                for field in data.files:
+                    dataDict[field] = []
+
+            # Read and combine the data from all files
+            for i, name in enumerate(files):
+                with np.load(name) as data:
+                    for field in data.files:
+                        dataDict[field].append(data[field])
+
+            # Save the combined data into a npz file
+            np.savez(outputFile, **dataDict)
+
+            # np.savez(outputFile, np.concatenate(trainingFiles))
 
     def _getTrainDataDir(self):
         return self._getExtraPath(TRAIN_DATA_DIR)

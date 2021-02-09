@@ -74,15 +74,15 @@ class Plugin(pwem.Plugin):
 
         # Create the environment
         installationCmd += 'conda create -y -n %s -c conda-forge -c anaconda python=3.6 ' \
-                           'tensorflow-gpu==1.15 ' \
-                           '&& ' \
-                           % CRYOCARE_ENV_NAME
+                           '&& ' % CRYOCARE_ENV_NAME
 
         # Activate new the environment
         installationCmd += 'conda activate %s && ' % CRYOCARE_ENV_NAME
 
         # Install non-conda required packages
-        installationCmd += 'pip install "numpy<1.19.0,>=1.16.0"'
+        installationCmd += 'pip install "opt-einsum==2.3.2" '
+        installationCmd += 'pip install "tensorflow-gpu==1.15" '
+        installationCmd += 'pip install "numpy<1.19.0,>=1.16.0" '
         installationCmd += 'pip install mrcfile && '
         installationCmd += 'pip install csbdeep && '
         installationCmd += 'pip install "h5py<3.0.0" '
