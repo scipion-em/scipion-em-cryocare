@@ -40,7 +40,7 @@ class TestCryoCARE(BaseTest):
         # Check files generated
         self.assertTrue(exists(protPrepTrainingData._getExtraPath(TRAIN_DATA_DIR, TRAIN_DATA_FN)))
         self.assertTrue(exists(protPrepTrainingData._getExtraPath(TRAIN_DATA_DIR, MEAN_STD_FN)))
-        self.assertTrue(exists(protPrepTrainingData._getExtraPath(TRAIN_DATA_CONFIG,'training_data_config_001.json')))
+        self.assertTrue(exists(protPrepTrainingData._getExtraPath(TRAIN_DATA_CONFIG,'training_data_config_000.json')))
 
         return protPrepTrainingData
 

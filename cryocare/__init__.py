@@ -60,6 +60,18 @@ class Plugin(pwem.Plugin):
         if 'PYTHONPATH' in environ:
             # this is required for python virtual env to work
             del environ['PYTHONPATH']
+        if 'CUDA_VISIBLE_DEVICES' not in environ:
+            environ.update({'CUDA_VISIBLE_DEVICES': '0'})
+            # JORGE
+            fname = "/home/jjimenez/Desktop/test_JJ.txt"
+            if os.path.exists(fname):
+                os.remove(fname)
+            fjj = open(fname, "a+")
+            fjj.write('HOLA--------->onDebugMode PID {}'.format(os.getpid()))
+            fjj.close()
+            print('HOLA--------->onDebugMode PID {}'.format(os.getpid()))
+            import time
+            # JORGE_END
 
         cudaLib = environ.get(CRYOCARE_CUDA_LIB, pwem.Config.CUDA_LIB)
         environ.addLibrary(cudaLib)
@@ -74,7 +86,7 @@ class Plugin(pwem.Plugin):
 
         # Create the environment
         installationCmd += 'conda create -y -n %s -c conda-forge -c anaconda python=3.6 ' \
-                           '&& ' % CRYOCARE_ENV_NAME
+                           'cudatoolkit==10.0.130 && ' % CRYOCARE_ENV_NAME
 
         # Activate new the environment
         installationCmd += 'conda activate %s && ' % CRYOCARE_ENV_NAME
