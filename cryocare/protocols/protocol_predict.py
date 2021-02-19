@@ -61,6 +61,11 @@ tomograms followed by per-pixel averaging."""
                       help='Denoising is performed in chunks to reduce memory consumption. '
                            'Sub-volumes with this side length are loaded into memory.')
 
+        form.addHidden(params.GPU_LIST, params.StringParam, default='0',
+                       expertLevel=params.LEVEL_ADVANCED,
+                       label="Choose GPU IDs",
+                       help="GPU ID, normally it is 0.")
+
     # --------------------------- STEPS functions ------------------------------
     def _insertAllSteps(self):
         numTomo = 0

@@ -62,16 +62,6 @@ class Plugin(pwem.Plugin):
             del environ['PYTHONPATH']
         if 'CUDA_VISIBLE_DEVICES' not in environ:
             environ.update({'CUDA_VISIBLE_DEVICES': '0'})
-            # JORGE
-            fname = "/home/jjimenez/Desktop/test_JJ.txt"
-            if os.path.exists(fname):
-                os.remove(fname)
-            fjj = open(fname, "a+")
-            fjj.write('HOLA--------->onDebugMode PID {}'.format(os.getpid()))
-            fjj.close()
-            print('HOLA--------->onDebugMode PID {}'.format(os.getpid()))
-            import time
-            # JORGE_END
 
         cudaLib = environ.get(CRYOCARE_CUDA_LIB, pwem.Config.CUDA_LIB)
         environ.addLibrary(cudaLib)
