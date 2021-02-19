@@ -98,7 +98,8 @@ tomograms followed by per-pixel averaging."""
         expectedMeanStdFile = join(self.model.get().getPath(), MEAN_STD_FN)
         copyFile(self.model.get().getMeanStd(), expectedMeanStdFile)
         # Run cryoCARE
-        Plugin.runCryocare(self, PYTHON, '$(which cryoCARE_predict.py) --conf {}'.format(self._configPath[numTomo]))
+        Plugin.runCryocare(self, PYTHON, '$(which cryoCARE_predict.py) --conf {}'.format(self._configPath[numTomo]),
+                           gpuId=getattr(self, params.GPU_LIST).get())
         # Remove copied file
         remove(expectedMeanStdFile)
 
