@@ -20,7 +20,7 @@ class ProtCryoCAREPrediction(EMProtocol, ProtTomoBase):
 tomograms followed by per-pixel averaging."""
 
     _label = 'CryoCARE Prediction'
-    _configPath = None
+    _configPath = []
     _outputFiles = []
 
     # -------------------------- DEFINE param functions ----------------------
@@ -61,14 +61,19 @@ tomograms followed by per-pixel averaging."""
                       help='Denoising is performed in chunks to reduce memory consumption. '
                            'Sub-volumes with this side length are loaded into memory.')
 
+        form.addHidden(params.GPU_LIST, params.StringParam, default='0',
+                       expertLevel=params.LEVEL_ADVANCED,
+                       label="Choose GPU IDs",
+                       help="GPU ID, normally it is 0.")
+
     # --------------------------- STEPS functions ------------------------------
     def _insertAllSteps(self):
-        numTomo = 1
+        numTomo = 0
         makePath(self._getPredictConfDir())
         # Insert processing steps
         for evenTomo, oddTomo in zip(self.even.get(), self.odd.get()):
-            self._insertFunctionStep('preparePredictStep', evenTomo, oddTomo, numTomo)
-            self._insertFunctionStep('predictStep')
+            self._insertFunctionStep('preparePredictStep', evenTomo.getFileName(), oddTomo.getFileName(), numTomo)
+            self._insertFunctionStep('predictStep', numTomo)
             numTomo += 1
 
         self._insertFunctionStep('createOutputStep')
@@ -79,21 +84,22 @@ tomograms followed by per-pixel averaging."""
         config = {
             'model_name': CRYOCARE_MODEL,
             'path': self.model.get().getPath(),
-            'even': evenTomo.getFileName(),
-            'odd': oddTomo.getFileName(),
+            'even': evenTomo,
+            'odd': oddTomo,
             'output_name': outputName,
             'mrc_slice_shape': 3 * [self.mrc_slice_shape.get()]
         }
-        self._configPath = join(self._getPredictConfDir(), '{}_{:03d}.json'.format(PREDICT_CONFIG, numTomo))
-        with open(self._configPath, 'w+') as f:
+        self._configPath.append(join(self._getPredictConfDir(), '{}_{:03d}.json'.format(PREDICT_CONFIG, numTomo)))
+        with open(self._configPath[numTomo], 'w+') as f:
             json.dump(config, f, indent=2)
 
-    def predictStep(self):
+    def predictStep(self, numTomo):
         # cryoCARE_predict.py expects the mean_std.npz file to be in the same directory as the model
         expectedMeanStdFile = join(self.model.get().getPath(), MEAN_STD_FN)
         copyFile(self.model.get().getMeanStd(), expectedMeanStdFile)
         # Run cryoCARE
-        Plugin.runCryocare(self, PYTHON, '$(which cryoCARE_predict.py) --conf {}'.format(abspath(self._configPath)))
+        Plugin.runCryocare(self, PYTHON, '$(which cryoCARE_predict.py) --conf {}'.format(self._configPath[numTomo]),
+                           gpuId=getattr(self, params.GPU_LIST).get())
         # Remove copied file
         remove(expectedMeanStdFile)
 
@@ -128,8 +134,8 @@ tomograms followed by per-pixel averaging."""
         return validateMsgs
 
     # --------------------------- UTIL functions -----------------------------------
-    def _getOutputName(self, inTomo):
-        outputName = removeBaseExt(inTomo.getFileName()) + '_denoised.mrc'
+    def _getOutputName(self, inTomoName):
+        outputName = removeBaseExt(inTomoName) + '_denoised.mrc'
         return abspath(self._getExtraPath(outputName.replace('_Even', '').replace('_Odd', '')))
 
     def _getPredictConfDir(self):
