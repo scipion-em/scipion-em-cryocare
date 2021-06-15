@@ -54,12 +54,14 @@ class Plugin(pwem.Plugin):
         return activation.replace(scipionHome, "", 1)
 
     @classmethod
-    def getEnviron(cls):
+    def getEnviron(cls, gpuId='0'):
         """ Setup the environment variables needed to launch cryocare. """
         environ = Environ(os.environ)
         if 'PYTHONPATH' in environ:
             # this is required for python virtual env to work
             del environ['PYTHONPATH']
+
+        environ.update({'CUDA_VISIBLE_DEVICES': gpuId})
 
         cudaLib = environ.get(CRYOCARE_CUDA_LIB, pwem.Config.CUDA_LIB)
         environ.addLibrary(cudaLib)
@@ -74,15 +76,15 @@ class Plugin(pwem.Plugin):
 
         # Create the environment
         installationCmd += 'conda create -y -n %s -c conda-forge -c anaconda python=3.6 ' \
-                           'tensorflow-gpu==1.15 ' \
-                           '&& ' \
-                           % CRYOCARE_ENV_NAME
+                           'cudatoolkit==10.0.130 && ' % CRYOCARE_ENV_NAME
 
         # Activate new the environment
         installationCmd += 'conda activate %s && ' % CRYOCARE_ENV_NAME
 
         # Install non-conda required packages
-        installationCmd += 'pip install "numpy<1.19.0,>=1.16.0"'
+        installationCmd += 'pip install "opt-einsum==2.3.2" '
+        installationCmd += 'pip install "tensorflow-gpu==1.15" '
+        installationCmd += 'pip install "numpy<1.19.0,>=1.16.0" '
         installationCmd += 'pip install mrcfile && '
         installationCmd += 'pip install csbdeep && '
         installationCmd += 'pip install "h5py<3.0.0" '
@@ -121,9 +123,9 @@ class Plugin(pwem.Plugin):
         return neededProgs
 
     @classmethod
-    def runCryocare(cls, protocol, program, args, cwd=None):
+    def runCryocare(cls, protocol, program, args, cwd=None, gpuId='0'):
         """ Run cryoCARE command from a given protocol. """
         fullProgram = '%s %s && %s' % (cls.getCondaActivationCmd(),
                                        cls.getCryocareEnvActivation(),
                                        program)
-        protocol.runJob(fullProgram, args, env=cls.getEnviron(), cwd=cwd, numberOfMpi=1)
+        protocol.runJob(fullProgram, args, env=cls.getEnviron(gpuId=gpuId), cwd=cwd, numberOfMpi=1)
