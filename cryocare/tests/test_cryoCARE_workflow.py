@@ -46,7 +46,8 @@ class TestCryoCARE(BaseTest):
 
     def _runTrainingData(self, protPrepTrainingData):
         protTraining = self.newProtocol(ProtCryoCARETraining,
-                                        train_data=getattr(protPrepTrainingData, 'train_data', None))
+                                        train_data=getattr(protPrepTrainingData, 'train_data', None),
+                                        batch_size=4)
 
         self.launchProtocol(protTraining)
         output = getattr(protTraining, 'model', None)
