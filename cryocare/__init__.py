@@ -26,7 +26,6 @@
 
 import pwem
 import os
-from pyworkflow import Config
 from pyworkflow.utils import Environ
 from cryocare.constants import CRYOCARE_ENV_ACTIVATION, DEFAULT_ACTIVATION_CMD, CRYOCARE_ENV_NAME, \
     CRYOCARE_DEFAULT_VERSION, CRYOCARE_HOME, CRYOCARE_CUDA_LIB, CRYOCARE
@@ -48,9 +47,7 @@ class Plugin(pwem.Plugin):
 
     @classmethod
     def getCryocareEnvActivation(cls):
-        activation = cls.getVar(CRYOCARE_ENV_ACTIVATION)
-        scipionHome = Config.SCIPION_HOME + os.path.sep
-        return activation.replace(scipionHome, "", 1)
+        return cls.getVar(CRYOCARE_ENV_ACTIVATION)
 
     @classmethod
     def getEnviron(cls, gpuId='0'):
@@ -75,26 +72,18 @@ class Plugin(pwem.Plugin):
 
         # Create the environment
         installationCmd += 'conda create -y -n %s -c conda-forge -c anaconda python=3.8 ' \
-                           'cudnn=7.6.4=cuda10.1_0 ' \
-                           'tensorflow=2.3.0 "tensorflow-estimator>=2.3.0,<2.4.0" ' \
-                           'scipy=1.4.1 && ' % CRYOCARE_ENV_NAME
-
-        # cudnn=7.6.0=cuda10.0_0
+                           'cudnn=7.6.4=cuda10.1_0 && ' % CRYOCARE_ENV_NAME
 
         # Activate new the environment
         installationCmd += 'conda activate %s && ' % CRYOCARE_ENV_NAME
 
         # Install non-conda required packages
-        installationCmd += 'pip install "opt-einsum==2.3.2" '
-        # installationCmd += 'pip install "tensorflow-gpu==1.15" '
-        installationCmd += 'pip install "numpy<1.19.0,>=1.16.0" '
+        installationCmd += 'pip install tensorflow-gpu==2.3.3 && '
         installationCmd += 'pip install mrcfile && '
-        installationCmd += 'pip install csbdeep && '
-        installationCmd += 'pip install "h5py<3.0.0" '
+        installationCmd += 'pip install csbdeep '
         # I had the same issue and was able to fix this by setting h5py < 3.0.0.
         # Looks like here was a 3.0 release of h5py recently where they changed how strings are stored/read.
         # https://github.com/keras-team/keras/issues/14265
-
 
         # Install cryoCARE
         installationCmd += 'pip install %s==%s &&' % (CRYOCARE, CRYOCARE_DEFAULT_VERSION)

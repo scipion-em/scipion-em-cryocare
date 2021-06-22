@@ -4,7 +4,7 @@ from os.path import join
 import numpy as np
 
 from pwem.protocols import EMProtocol
-from pyworkflow.protocol import params, IntParam, FloatParam, Positive, LT, GT, LEVEL_ADVANCED
+from pyworkflow.protocol import params, IntParam, FloatParam, Positive, LT, GT, LEVEL_ADVANCED, EnumParam
 from pyworkflow.utils import Message, makePath, moveFile
 from scipion.constants import PYTHON
 
@@ -13,14 +13,22 @@ from cryocare.constants import TRAIN_DATA_DIR, TRAIN_DATA_FN, MEAN_STD_FN, TRAIN
 from cryocare.objects import CryocareTrainData
 from cryocare.utils import CryocareUtils as ccutils
 
+# Tilt axis values
+X_AXIS = 0
+Y_AXIS = 1
+Z_AXIS = 2
+X_AXIS_LABEL = 'X'
+Y_AXIS_LABEL = 'Y'
+Z_AXIS_LABEL = 'Z'
+
 
 class ProtCryoCAREPrepareTrainingData(EMProtocol):
     """Operate the data to make it be expressed as expected by cryoCARE net."""
 
     _label = 'CryoCARE Training Data Extraction'
-    _configFile = []
-
+    _configFile = None
     # -------------------------- DEFINE param functions ----------------------
+
     def _defineParams(self, form):
         """ Define the input parameters that will be used.
         Params:
@@ -35,7 +43,6 @@ class ProtCryoCAREPrepareTrainingData(EMProtocol):
                       allowsNull=False,
                       help='Set of tomograms reconstructed from the even frames of the tilt'
                            'series movies.')
-
         form.addParam('oddTomos', params.PointerParam,
                       pointerClass='SetOfTomograms',
                       label='Odd tomograms',
@@ -45,6 +52,14 @@ class ProtCryoCAREPrepareTrainingData(EMProtocol):
                            'series movies.')
 
         form.addSection(label='Config Parameters')
+        form.addParam('tilt_axis', EnumParam,
+                      label='Tilt axis of the tomograms',
+                      choices=[X_AXIS_LABEL, Y_AXIS_LABEL, Z_AXIS_LABEL],
+                      default=Y_AXIS,
+                      allowsNull=False,
+                      display=EnumParam.DISPLAY_HLIST,
+                      help='Tomograms are split along this axis to extract train and validation data separately.')
+
         form.addParam('patch_shape', IntParam,
                       label='Side length of the training volumes',
                       default=64,
@@ -60,6 +75,12 @@ class ProtCryoCAREPrepareTrainingData(EMProtocol):
                       validators=[Positive],
                       help='Number of sub-volumes to sample from the even and odd tomograms.')
 
+        form.addParam('n_normalization_samples', IntParam,
+                      label='No. of subvolumes extracted per tomogram',
+                      default=500,
+                      validators=[Positive],
+                      help='They are used to compute mean and standard deviation for normalization.')
+
         form.addParam('split', FloatParam,
                       label='Train-Validation Split',
                       default=0.9,
@@ -69,49 +90,38 @@ class ProtCryoCAREPrepareTrainingData(EMProtocol):
 
     # --------------------------- STEPS functions ------------------------------
     def _insertAllSteps(self):
-        numTomo = 0
-        makePath(self._getTrainDataDir())
-        makePath(self._getTrainDataConfDir())
-
-        for evenTomo, oddTomo in zip(self.evenTomos.get(), self.oddTomos.get()):
-            self._insertFunctionStep('prepareTrainingDataStep', evenTomo.getFileName(), oddTomo.getFileName(), numTomo)
-            self._insertFunctionStep('runDataExtraction', numTomo)
-            numTomo += 1
-
+        self._initialize()
+        self._insertFunctionStep('prepareTrainingDataStep')
+        self._insertFunctionStep('runDataExtraction')
         self._insertFunctionStep('createOutputStep')
 
-    def prepareTrainingDataStep(self, evenTomo, oddTomo, numTomo):
+    def _initialize(self):
+        makePath(self._getTrainDataDir())
+        makePath(self._getTrainDataConfDir())
+        self._configFile = join(self._getTrainDataConfDir(), TRAIN_DATA_CONFIG)
+
+    def prepareTrainingDataStep(self):
         config = {
-            'even': evenTomo,
-            'odd': oddTomo,
+            'even': self._getListOfTomoNames(self.evenTomos.get()),
+            'odd': self._getListOfTomoNames(self.oddTomos.get()),
             'patch_shape': 3 * [self.patch_shape.get()],
             'num_slices': self.num_slices.get(),
             'split': self.split.get(),
+            'tilt_axis': self._decodeTiltAxisValue(self.tilt_axis.get()),
+            'n_normalization_samples': self.n_normalization_samples.get(),
             'path': self._getExtraPath('train_data')
         }
-        self._configFile.append(join(self._getTrainDataConfDir(), '{}_{:03d}.json'.format(TRAIN_DATA_CONFIG, numTomo)))
-        with open(self._configFile[numTomo], 'w+') as f:
+        with open(self._configFile, 'w+') as f:
             json.dump(config, f, indent=2)
 
-    def runDataExtraction(self, numTomo):
-        Plugin.runCryocare(self, PYTHON,
-                           '$(which cryoCARE_extract_train_data.py) --conf {}'.format(self._configFile[numTomo]))
-        # Rename the generated files to preserve them so they can be merged in createOutputStep
-        moveFile(self._getTrainDataFile(), self._getTmpPath('{:03d}_{}'.format(numTomo, TRAIN_DATA_FN)))
-        moveFile(self._getMeanStdFile(), self._getTmpPath('{:03d}_{}'.format(numTomo, MEAN_STD_FN)))
+    def runDataExtraction(self):
+        Plugin.runCryocare(self, PYTHON, '$(which cryoCARE_extract_train_data.py) --conf %s' % self._configFile)
 
     def createOutputStep(self):
-        # if numTomo > 1:
-        #     configList = glob.glob(self._getExtraPath(join(TRAIN_DATA_CONFIG, '*.json')))
-        #     moveFile(configList[0], )
-        trainDataFile = self._getTrainDataFile()
-        meanStdFile = self._getMeanStdFile()
-        # Combine all train_data and mean_std files into one
-        self._combineTrainDataFiles(self._getTmpPath('*' + TRAIN_DATA_FN), trainDataFile)  # train_data files
-        self._combineTrainDataFiles(self._getTmpPath('*' + MEAN_STD_FN), meanStdFile)  # mea_std files
+        calcDataDir = self._getTrainDataDir()
         # Generate a train data object containing the resulting data
-        train_data = CryocareTrainData(train_data=trainDataFile,
-                                       mean_std=meanStdFile,
+        train_data = CryocareTrainData(train_data_dir=calcDataDir,
+                                       mean_std=calcDataDir,
                                        patch_size=self.patch_shape.get())
         self._defineOutputs(train_data=train_data)
 
@@ -163,8 +173,6 @@ class ProtCryoCAREPrepareTrainingData(EMProtocol):
             # Save the combined data into a npz file
             np.savez(outputFile, **dataDict)
 
-            # np.savez(outputFile, np.concatenate(trainingFiles))
-
     def _getTrainDataDir(self):
         return self._getExtraPath(TRAIN_DATA_DIR)
 
@@ -176,3 +184,17 @@ class ProtCryoCAREPrepareTrainingData(EMProtocol):
 
     def _getTrainDataConfDir(self):
         return self._getExtraPath(TRAIN_DATA_CONFIG)
+
+    @staticmethod
+    def _decodeTiltAxisValue(value):
+        if value == X_AXIS:
+            return X_AXIS_LABEL
+        elif value == Y_AXIS:
+            return Y_AXIS_LABEL
+        else:
+            return Z_AXIS_LABEL
+
+    @staticmethod
+    def _getListOfTomoNames(tomoSet):
+        return [tomo.getFileName() for tomo in tomoSet]
+
