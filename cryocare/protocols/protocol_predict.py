@@ -4,7 +4,7 @@ from os.path import abspath, join
 
 from pwem.protocols import EMProtocol
 from pyworkflow.protocol import params
-from pyworkflow.utils import Message, getParentFolder, removeBaseExt, makePath, copyFile
+from pyworkflow.utils import Message, removeBaseExt, makePath, copyFile
 from scipion.constants import PYTHON
 
 from cryocare import Plugin

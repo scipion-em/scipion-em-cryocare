@@ -75,7 +75,7 @@ class Plugin(pwem.Plugin):
 
         # Create the environment
         installationCmd += 'conda create -y -n %s -c conda-forge -c anaconda python=3.8 ' \
-                           'cudnn=7.6.4=cuda10.1_0' \
+                           'cudnn=7.6.4=cuda10.1_0 ' \
                            'tensorflow=2.3.0 "tensorflow-estimator>=2.3.0,<2.4.0" ' \
                            'scipy=1.4.1 && ' % CRYOCARE_ENV_NAME
 
