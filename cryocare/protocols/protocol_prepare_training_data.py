@@ -90,13 +90,14 @@ class ProtCryoCAREPrepareTrainingData(EMProtocol):
 
     # --------------------------- STEPS functions ------------------------------
     def _insertAllSteps(self):
+        self._initialize()
         self._insertFunctionStep(self.prepareTrainingDataStep)
         self._insertFunctionStep(self.runDataExtraction)
         self._insertFunctionStep(self.createOutputStep)
 
     def _initialize(self):
         makePath(self._getTrainDataDir())
-        makePath(self._getTrainDataConfDir().getTrainDataDir())
+        makePath(self._getTrainDataConfDir())
         self._configFile = join(self._getTrainDataConfDir(), TRAIN_DATA_CONFIG)
 
     def prepareTrainingDataStep(self):
