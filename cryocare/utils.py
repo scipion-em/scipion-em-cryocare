@@ -23,7 +23,23 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
+from os.path import join, exists
 
+from pyworkflow.utils import createLink
+
+from cryocare.constants import TRAIN_DATA_FN, VALIDATION_DATA_FN
+
+
+def makeDatasetSymLinks(prot, trainDataDir):
+    # The prediction is expecting the training and validation datasets to be in the same place as the training
+    # model, but they are located in the training data generation extra directory. Hence, a symbolic link will
+    # be created for each one
+    linkedTrainingDataFile = prot._getExtraPath(TRAIN_DATA_FN)
+    linkedValidationDataFile = prot._getExtraPath(VALIDATION_DATA_FN)
+    if not exists(linkedTrainingDataFile):
+        createLink(join(trainDataDir, TRAIN_DATA_FN), linkedTrainingDataFile)
+    if not exists(linkedValidationDataFile):
+        createLink(join(trainDataDir, VALIDATION_DATA_FN), linkedValidationDataFile)
 
 class CryocareUtils:
     @staticmethod

@@ -10,6 +10,7 @@ from scipion.constants import PYTHON
 from cryocare import Plugin
 from cryocare.constants import CRYOCARE_MODEL, TRAIN_DATA_FN, VALIDATION_DATA_FN
 from cryocare.objects import CryocareModel
+from cryocare.utils import makeDatasetSymLinks
 
 
 class ProtCryoCARETraining(EMProtocol):
@@ -101,13 +102,7 @@ class ProtCryoCARETraining(EMProtocol):
         # The prediction is expecting the training and validation datasets to be in the same place as the training
         # model, but they are located in the training data generation extra directory. Hence, a symbolic link will
         # be created for each one
-        trainDataDir = self._getPreparedTrainingDataDir()
-        linkedTrainingDataFile = self._getExtraPath(TRAIN_DATA_FN)
-        linkedValidationDataFile = self._getExtraPath(TRAIN_DATA_FN)
-        if not exists(linkedTrainingDataFile):
-            createLink(join(trainDataDir, TRAIN_DATA_FN), linkedTrainingDataFile)
-        if not exists(linkedValidationDataFile):
-            createLink(join(trainDataDir, VALIDATION_DATA_FN), linkedValidationDataFile)
+        makeDatasetSymLinks(self, self._getPreparedTrainingDataDir())
 
     def prepareTrainingStep(self):
         config = {

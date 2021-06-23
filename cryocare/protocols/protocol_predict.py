@@ -53,8 +53,6 @@ tomograms followed by per-pixel averaging."""
                       allowsNull=False,
                       help='Select a trained cryoCARE model.')
 
-        form.addSection(label='Memory Management')
-
         form.addHidden(params.GPU_LIST, params.StringParam, default='0',
                        expertLevel=params.LEVEL_ADVANCED,
                        label="Choose GPU IDs",

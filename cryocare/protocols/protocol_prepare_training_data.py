@@ -62,7 +62,7 @@ class ProtCryoCAREPrepareTrainingData(EMProtocol):
 
         form.addParam('patch_shape', IntParam,
                       label='Side length of the training volumes',
-                      default=64,
+                      default=72,
                       help='Corresponding sub-volumes pairs of the provided 3D shape '
                            'are extracted from the even and odd tomograms. The higher it is,'
                            'the higher net depth is required for training and the longer it '
@@ -77,7 +77,8 @@ class ProtCryoCAREPrepareTrainingData(EMProtocol):
 
         form.addParam('n_normalization_samples', IntParam,
                       label='No. of subvolumes extracted per tomogram',
-                      default=500,
+                      default=120,
+                      expertLevel=LEVEL_ADVANCED,
                       validators=[Positive],
                       help='They are used to compute mean and standard deviation for normalization.')
 
