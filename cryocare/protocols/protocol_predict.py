@@ -2,7 +2,7 @@ import json
 from os.path import abspath, join
 
 from pwem.protocols import EMProtocol
-from pyworkflow.protocol import params
+from pyworkflow.protocol import params, StringParam
 from pyworkflow.utils import Message, removeBaseExt, makePath
 from scipion.constants import PYTHON
 
@@ -53,6 +53,14 @@ tomograms followed by per-pixel averaging."""
                       allowsNull=False,
                       help='Select a trained cryoCARE model.')
 
+        form.addParam('n_tiles', StringParam,
+                      label="Number of tiles",
+                      default='1 1 1',
+                      important=True,
+                      allowsNull=False,
+                      help='Normally the gpu cannot handle the whole size of the tomogrmas, so it can be split into '
+                           'n tiles per axis to process smaller volumes instead of one big at once.')
+
         form.addHidden(params.GPU_LIST, params.StringParam, default='0',
                        expertLevel=params.LEVEL_ADVANCED,
                        label="Choose GPU IDs",
@@ -78,7 +86,8 @@ tomograms followed by per-pixel averaging."""
             'path': self.model.get().getPath(),
             'even': evenTomo,
             'odd': oddTomo,
-            'output_name': outputName
+            'output_name': outputName,
+            'n_tiles': [int(i) for i in self.n_tiles.get().split()]
         }
         self._configPath.append(join(self._getPredictConfDir(), '{}_{:03d}.json'.format(PREDICT_CONFIG, numTomo)))
         with open(self._configPath[numTomo], 'w+') as f:

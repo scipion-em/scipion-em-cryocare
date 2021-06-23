@@ -72,7 +72,7 @@ class Plugin(pwem.Plugin):
 
         # Create the environment
         installationCmd += 'conda create -y -n %s -c conda-forge -c anaconda python=3.8 ' \
-                           'cudnn=7.6.4=cuda10.1_0 && ' % CRYOCARE_ENV_NAME
+                           'cudnn=7.6.5=cuda10.1_0 && ' % CRYOCARE_ENV_NAME
 
         # Activate new the environment
         installationCmd += 'conda activate %s && ' % CRYOCARE_ENV_NAME
