@@ -23,7 +23,6 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
-from pwem.emlib.image import ImageHandler
 
 
 class CryocareUtils:

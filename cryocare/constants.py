@@ -36,6 +36,7 @@ CRYOCARE_CUDA_LIB = 'CRYOCARE_CUDA_LIB'
 
 TRAIN_DATA_DIR = 'train_data'
 TRAIN_DATA_FN = 'train_data.npz'
+VALIDATION_DATA_FN = 'val_data.npz'
 MEAN_STD_FN = 'mean_std.npz'
 TRAIN_DATA_CONFIG = 'training_data_config'
 CRYOCARE_MODEL = 'cryoCARE_model'

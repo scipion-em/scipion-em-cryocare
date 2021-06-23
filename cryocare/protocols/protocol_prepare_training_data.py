@@ -90,14 +90,13 @@ class ProtCryoCAREPrepareTrainingData(EMProtocol):
 
     # --------------------------- STEPS functions ------------------------------
     def _insertAllSteps(self):
-        self._initialize()
-        self._insertFunctionStep('prepareTrainingDataStep')
-        self._insertFunctionStep('runDataExtraction')
-        self._insertFunctionStep('createOutputStep')
+        self._insertFunctionStep(self.prepareTrainingDataStep)
+        self._insertFunctionStep(self.runDataExtraction)
+        self._insertFunctionStep(self.createOutputStep)
 
     def _initialize(self):
         makePath(self._getTrainDataDir())
-        makePath(self._getTrainDataConfDir())
+        makePath(self._getTrainDataConfDir().getTrainDataDir())
         self._configFile = join(self._getTrainDataConfDir(), TRAIN_DATA_CONFIG)
 
     def prepareTrainingDataStep(self):
@@ -118,10 +117,8 @@ class ProtCryoCAREPrepareTrainingData(EMProtocol):
         Plugin.runCryocare(self, PYTHON, '$(which cryoCARE_extract_train_data.py) --conf %s' % self._configFile)
 
     def createOutputStep(self):
-        calcDataDir = self._getTrainDataDir()
         # Generate a train data object containing the resulting data
-        train_data = CryocareTrainData(train_data_dir=calcDataDir,
-                                       mean_std=calcDataDir,
+        train_data = CryocareTrainData(train_data_dir=self._getTrainDataDir(),
                                        patch_size=self.patch_shape.get())
         self._defineOutputs(train_data=train_data)
 

@@ -1,13 +1,14 @@
 import json
 import operator
+from os.path import join, exists
 
 from pwem.protocols import EMProtocol
 from pyworkflow.protocol import IntParam, PointerParam, FloatParam, params, GT, LEVEL_ADVANCED, GE, Positive
-from pyworkflow.utils import Message
+from pyworkflow.utils import Message, createLink
 from scipion.constants import PYTHON
 
 from cryocare import Plugin
-from cryocare.constants import CRYOCARE_MODEL
+from cryocare.constants import CRYOCARE_MODEL, TRAIN_DATA_FN, VALIDATION_DATA_FN
 from cryocare.objects import CryocareModel
 
 
@@ -91,9 +92,22 @@ class ProtCryoCARETraining(EMProtocol):
                        help="GPU ID, normally it is 0.")
 
     def _insertAllSteps(self):
-        self._insertFunctionStep('prepareTrainingStep')
-        self._insertFunctionStep('trainingStep')
-        self._insertFunctionStep('createOutputStep')
+        self._initialize()
+        self._insertFunctionStep(self.prepareTrainingStep)
+        self._insertFunctionStep(self.trainingStep)
+        self._insertFunctionStep(self.createOutputStep)
+
+    def _initialize(self):
+        # The prediction is expecting the training and validation datasets to be in the same place as the training
+        # model, but they are located in the training data generation extra directory. Hence, a symbolic link will
+        # be created for each one
+        trainDataDir = self._getPreparedTrainingDataDir()
+        linkedTrainingDataFile = self._getExtraPath(TRAIN_DATA_FN)
+        linkedValidationDataFile = self._getExtraPath(TRAIN_DATA_FN)
+        if not exists(linkedTrainingDataFile):
+            createLink(join(trainDataDir, TRAIN_DATA_FN), linkedTrainingDataFile)
+        if not exists(linkedValidationDataFile):
+            createLink(join(trainDataDir, VALIDATION_DATA_FN), linkedValidationDataFile)
 
     def prepareTrainingStep(self):
         config = {
@@ -119,7 +133,7 @@ class ProtCryoCARETraining(EMProtocol):
 
     def createOutputStep(self):
         model = CryocareModel(basedir=self._getExtraPath(),
-                              train_data_dir=self.train_data.get().getTrainDataDir())
+                              train_data_dir=self._getPreparedTrainingDataDir())
         self._defineOutputs(model=model)
 
     # --------------------------- INFO functions -----------------------------------
@@ -151,3 +165,5 @@ class ProtCryoCARETraining(EMProtocol):
         else:
             return self.unet_n_depth.get()
 
+    def _getPreparedTrainingDataDir(self):
+            return self.train_data.get().getTrainDataDir()
