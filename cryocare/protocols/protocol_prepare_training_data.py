@@ -9,7 +9,7 @@ from pyworkflow.utils import Message, makePath, moveFile
 from scipion.constants import PYTHON
 
 from cryocare import Plugin
-from cryocare.constants import TRAIN_DATA_DIR, TRAIN_DATA_FN, MEAN_STD_FN, TRAIN_DATA_CONFIG
+from cryocare.constants import TRAIN_DATA_DIR, TRAIN_DATA_FN, TRAIN_DATA_CONFIG, VALIDATION_DATA_FN
 from cryocare.objects import CryocareTrainData
 from cryocare.utils import CryocareUtils as ccutils
 
@@ -131,10 +131,10 @@ class ProtCryoCAREPrepareTrainingData(EMProtocol):
         if self.isFinished():
             summary.append("Generated training data info:\n"
                            "train_data_file = *{}*\n"
-                           "normalization_file = *{}*\n"
+                           "validation_data_file = *{}*\n"
                            "patch_size = *{}*".format(
                             self._getTrainDataFile(),
-                            self._getMeanStdFile(),
+                            self._getValidationDataFile(),
                             self.patch_shape.get()))
         return summary
 
@@ -178,8 +178,8 @@ class ProtCryoCAREPrepareTrainingData(EMProtocol):
     def _getTrainDataFile(self):
         return join(self._getTrainDataDir(), TRAIN_DATA_FN)
 
-    def _getMeanStdFile(self):
-        return join(self._getTrainDataDir(), MEAN_STD_FN)
+    def _getValidationDataFile(self):
+        return join(self._getTrainDataDir(), VALIDATION_DATA_FN)
 
     def _getTrainDataConfDir(self):
         return self._getExtraPath(TRAIN_DATA_CONFIG)

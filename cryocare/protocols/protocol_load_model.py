@@ -5,7 +5,7 @@ from pwem.protocols import EMProtocol
 from pyworkflow.protocol import PathParam, FileParam
 from pyworkflow.utils import Message, createLink
 
-from cryocare.constants import TRAIN_DATA_FN, VALIDATION_DATA_FN
+from cryocare.constants import TRAIN_DATA_FN, VALIDATION_DATA_FN, CRYOCARE_MODEL
 from cryocare.objects import CryocareModel
 from cryocare.utils import makeDatasetSymLinks
 
@@ -24,10 +24,10 @@ class ProtCryoCARELoadModel(EMProtocol):
         # You need a params to belong to a section:
         form.addSection(label=Message.LABEL_INPUT)
         form.addParam('basedir', PathParam,
-                      label='Basedir',
+                      label='Base directory of the trained cryoCARE model',
                       important=True,
                       allowsNull=False,
-                      help='Base directory of the trained cryoCARE model.')
+                      help='It must contain a model in .h5 format.')
         form.addParam('trainDataDir', FileParam,
                       label='Directory of the prepared data for training',
                       important=True,
@@ -44,10 +44,10 @@ class ProtCryoCARELoadModel(EMProtocol):
         # model, but they are located in the training data generation extra directory. Hence, a symbolic link will
         # be created for each one
         makeDatasetSymLinks(self, self.trainDataDir.get())
-        createLink()
+        createLink(self.basedir.get(), self._getExtraPath(CRYOCARE_MODEL))
 
     def createOutputStep(self):
-        model = CryocareModel(basedir=self.basedir.get(), train_data_dir=self._getExtraPath())
+        model = CryocareModel(basedir=self._getExtraPath(CRYOCARE_MODEL), train_data_dir=self._getExtraPath())
         self._defineOutputs(model=model)
 
     # --------------------------- INFO functions -----------------------------------
@@ -73,8 +73,5 @@ class ProtCryoCARELoadModel(EMProtocol):
         summary = []
 
         if self.isFinished():
-            summary.append("Loaded training model info:\n"
-                           "model_dir = *{}*\n"
-                           "normalization_file = *{}*".format
-                           (self.basedir.get(), self.meanStd.get()))
+            summary.append("Loaded training model_dir = *%s*" % self.basedir.get())
         return summary

@@ -5,7 +5,7 @@ from pwem.protocols import EMProtocol, FileParam
 from pyworkflow.protocol import PathParam
 from pyworkflow.utils import Message
 
-from cryocare.constants import TRAIN_DATA_FN, MEAN_STD_FN
+from cryocare.constants import TRAIN_DATA_FN, VALIDATION_DATA_FN
 from cryocare.objects import CryocareTrainData
 
 
@@ -27,20 +27,19 @@ class ProtCryoCARELoadTrainData(EMProtocol):
                       important=True,
                       allowsNull=False,
                       help='Path of the training data extracted from even and odd monograms. '
-                           'It must contain files {} and {}'.format(TRAIN_DATA_FN, MEAN_STD_FN))
+                           'It must contain files {} and {}'.format(TRAIN_DATA_FN, VALIDATION_DATA_FN))
         form.addParam('trainConfigFile', FileParam,
-                      label='Train config file',
+                      label='Training config file',
                       important=True,
                       allowsNull=False,
                       help='Config file generated in the corresponding training data preparation. '
                            'Used to get the patch size, so If there is more than 1, choose any of them.')
 
     def _insertAllSteps(self):
-        self._insertFunctionStep('createOutputStep')
+        self._insertFunctionStep(self.createOutputStep)
 
     def createOutputStep(self):
-        train_data = CryocareTrainData(train_data=join(self.trainDataDir.get(), TRAIN_DATA_FN),
-                                       mean_std=join(self.trainDataDir.get(), MEAN_STD_FN),
+        train_data = CryocareTrainData(train_data_dir=self.trainDataDir.get(),
                                        patch_size=self._getPatchSize())
         self._defineOutputs(train_data=train_data)
 
@@ -50,11 +49,9 @@ class ProtCryoCARELoadTrainData(EMProtocol):
 
         if self.isFinished():
             summary.append("Loaded training data info:\n"
-                           "train_data_file = *{}*\n"
-                           "normalization_file = *{}*\n"
+                           "train_data_dir = *{}*\n"
                            "patch_size = *{}*".format(
-                            join(self.trainDataDir.get(), TRAIN_DATA_FN),
-                            join(self.trainDataDir.get(), MEAN_STD_FN),
+                            self.trainDataDir.get(),
                             self._getPatchSize()))
         return summary
 

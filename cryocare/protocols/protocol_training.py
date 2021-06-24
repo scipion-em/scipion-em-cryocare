@@ -136,8 +136,7 @@ class ProtCryoCARETraining(EMProtocol):
         summary = []
 
         if self.isFinished():
-            summary.append("Generated training model info:\n"
-                           "model_dir = *{}*" % self._getExtraPath(CRYOCARE_MODEL))
+            summary.append("Generated training model in location: *%s*" % self._getExtraPath(CRYOCARE_MODEL))
         return summary
 
     def _validate(self):
@@ -161,4 +160,5 @@ class ProtCryoCARETraining(EMProtocol):
             return self.unet_n_depth.get()
 
     def _getPreparedTrainingDataDir(self):
-            return self.train_data.get().getTrainDataDir()
+        return self.train_data.get().getTrainDataDir()
+
