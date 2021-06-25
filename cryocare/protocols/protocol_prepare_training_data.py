@@ -80,7 +80,8 @@ class ProtCryoCAREPrepareTrainingData(EMProtocol):
                       default=120,
                       expertLevel=LEVEL_ADVANCED,
                       validators=[Positive],
-                      help='They are used to compute mean and standard deviation for normalization.')
+                      help='Number of training pairs which will be used to compute mean and standard deviation '
+                           'for normalization. By default it is the 10% of the number of training pairs.')
 
         form.addParam('split', FloatParam,
                       label='Train-Validation Split',
