@@ -1,7 +1,7 @@
 
 
 from pyworkflow.tests import DataSet
-DataSet(name='cryocare2', folder='cryocare2',
+DataSet(name='cryocare', folder='cryocare',
         files={
             'rec_even_odd_tomos_dir': 'Tomos_EvenOdd_Reconstructed',
             'tomo_even': 'Tomos_EvenOdd_Reconstructed/Tomo110_Even_bin6.mrc',

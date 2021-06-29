@@ -14,7 +14,7 @@ class TestCryoCARE(BaseTest):
     @classmethod
     def setUpClass(cls):
         setupTestProject(cls)
-        cls.dataset = DataSet.getDataSet('cryocare2')
+        cls.dataset = DataSet.getDataSet('cryocare')
         cls.sRate = 2.355
 
     def _runImportTomograms(self, tomoFile):

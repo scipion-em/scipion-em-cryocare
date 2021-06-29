@@ -12,7 +12,7 @@ class TestCryoCAREImports(BaseTest):
     @classmethod
     def setUpClass(cls):
         setupTestProject(cls)
-        cls.dataset = DataSet.getDataSet('cryocare2')
+        cls.dataset = DataSet.getDataSet('cryocare')
 
     def testLoadTrainingData(self):
         protImportTD = self.newProtocol(
