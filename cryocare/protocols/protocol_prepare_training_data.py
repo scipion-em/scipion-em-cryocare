@@ -4,6 +4,7 @@ from os.path import join
 import numpy as np
 
 from pwem.protocols import EMProtocol
+from pyworkflow import BETA
 from pyworkflow.protocol import params, IntParam, FloatParam, Positive, LT, GT, LEVEL_ADVANCED, EnumParam
 from pyworkflow.utils import Message, makePath, moveFile
 from scipion.constants import PYTHON
@@ -26,7 +27,9 @@ class ProtCryoCAREPrepareTrainingData(EMProtocol):
     """Operate the data to make it be expressed as expected by cryoCARE net."""
 
     _label = 'CryoCARE Training Data Extraction'
+    _devStatus = BETA
     _configFile = None
+
     # -------------------------- DEFINE param functions ----------------------
 
     def _defineParams(self, form):

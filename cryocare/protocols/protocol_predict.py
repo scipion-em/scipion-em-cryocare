@@ -2,6 +2,7 @@ import json
 from os.path import abspath, join
 
 from pwem.protocols import EMProtocol
+from pyworkflow import BETA
 from pyworkflow.protocol import params, StringParam
 from pyworkflow.utils import Message, removeBaseExt, makePath
 from scipion.constants import PYTHON
@@ -21,6 +22,7 @@ tomograms followed by per-pixel averaging."""
     _label = 'CryoCARE Prediction'
     _configPath = []
     _outputFiles = []
+    _devStatus = BETA
 
     # -------------------------- DEFINE param functions ----------------------
     def _defineParams(self, form):

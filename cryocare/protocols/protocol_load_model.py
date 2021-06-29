@@ -2,6 +2,7 @@ import glob
 from os.path import exists, join
 
 from pwem.protocols import EMProtocol
+from pyworkflow import BETA
 from pyworkflow.protocol import PathParam, FileParam
 from pyworkflow.utils import Message, createLink
 
@@ -14,6 +15,7 @@ class ProtCryoCARELoadModel(EMProtocol):
     """Use two data-independent reconstructed tomograms to train a 3D cryo-CARE network."""
 
     _label = 'CryoCARE Load Model'
+    _devStatus = BETA
 
     # -------------------------- DEFINE param functions ----------------------
     def _defineParams(self, form):
@@ -42,12 +44,12 @@ class ProtCryoCARELoadModel(EMProtocol):
     def _initialize(self):
         # The prediction is expecting the training and validation datasets to be in the same place as the training
         # model, but they are located in the training data generation extra directory. Hence, a symbolic link will
-        # be created for each one
+        # be created
         makeDatasetSymLinks(self, self.trainDataDir.get())
-        createLink(self.basedir.get(), self._getExtraPath(CRYOCARE_MODEL))
+        createLink(join('..', self.basedir.get()), self._getExtraPath(CRYOCARE_MODEL))
 
     def createOutputStep(self):
-        model = CryocareModel(basedir=self._getExtraPath(CRYOCARE_MODEL), train_data_dir=self._getExtraPath())
+        model = CryocareModel(basedir=self._getExtraPath(), train_data_dir=self._getExtraPath())
         self._defineOutputs(model=model)
 
     # --------------------------- INFO functions -----------------------------------

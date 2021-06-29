@@ -1,14 +1,14 @@
 import json
 import operator
-from os.path import join, exists
 
 from pwem.protocols import EMProtocol
+from pyworkflow import BETA
 from pyworkflow.protocol import IntParam, PointerParam, FloatParam, params, GT, LEVEL_ADVANCED, GE, Positive
-from pyworkflow.utils import Message, createLink
+from pyworkflow.utils import Message
 from scipion.constants import PYTHON
 
 from cryocare import Plugin
-from cryocare.constants import CRYOCARE_MODEL, TRAIN_DATA_FN, VALIDATION_DATA_FN
+from cryocare.constants import CRYOCARE_MODEL
 from cryocare.objects import CryocareModel
 from cryocare.utils import makeDatasetSymLinks
 
@@ -17,6 +17,7 @@ class ProtCryoCARETraining(EMProtocol):
     """Use two data-independent reconstructed tomograms to train a 3D cryo-CARE network."""
 
     _label = 'CryoCARE Training'
+    _devStatus = BETA
     _configPath = None
 
     # -------------------------- DEFINE param functions ----------------------

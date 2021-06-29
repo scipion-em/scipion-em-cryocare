@@ -2,10 +2,11 @@ import json
 from os.path import join
 
 from pwem.protocols import EMProtocol, FileParam
+from pyworkflow import BETA
 from pyworkflow.protocol import PathParam
-from pyworkflow.utils import Message
+from pyworkflow.utils import Message, createLink
 
-from cryocare.constants import TRAIN_DATA_FN, VALIDATION_DATA_FN
+from cryocare.constants import TRAIN_DATA_FN, VALIDATION_DATA_FN, TRAIN_DATA_DIR
 from cryocare.objects import CryocareTrainData
 
 
@@ -13,6 +14,7 @@ class ProtCryoCARELoadTrainData(EMProtocol):
     """Use two data-independent reconstructed tomograms to train a 3D cryo-CARE network."""
 
     _label = 'CryoCARE Load Training Data'
+    _devStatus = BETA
 
     # -------------------------- DEFINE param functions ----------------------
     def _defineParams(self, form):
@@ -27,16 +29,21 @@ class ProtCryoCARELoadTrainData(EMProtocol):
                       important=True,
                       allowsNull=False,
                       help='Path of the training data extracted from even and odd monograms. '
-                           'It must contain files {} and {}'.format(TRAIN_DATA_FN, VALIDATION_DATA_FN))
+                           'It must contain the following files:\n\n   - *{}*\n   - *{}*'.format(
+                            TRAIN_DATA_FN, VALIDATION_DATA_FN))
         form.addParam('trainConfigFile', FileParam,
                       label='Training config file',
                       important=True,
                       allowsNull=False,
                       help='Config file generated in the corresponding training data preparation. '
-                           'Used to get the patch size, so If there is more than 1, choose any of them.')
+                           'Used to get the patch size.')
 
     def _insertAllSteps(self):
+        self._initialize()
         self._insertFunctionStep(self.createOutputStep)
+
+    def _initialize(self):
+        createLink(join('..', self.trainDataDir.get()), self._getExtraPath(TRAIN_DATA_DIR))
 
     def createOutputStep(self):
         train_data = CryocareTrainData(train_data_dir=self.trainDataDir.get(),

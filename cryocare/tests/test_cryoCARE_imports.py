@@ -1,6 +1,8 @@
+from os.path import exists, join
 
 from pyworkflow.tests import BaseTest, setupTestProject
 from . import DataSet
+from ..constants import TRAIN_DATA_FN, VALIDATION_DATA_FN
 from ..objects import CryocareTrainData, CryocareModel
 from ..protocols import ProtCryoCARELoadTrainData, ProtCryoCARELoadModel
 
@@ -10,7 +12,7 @@ class TestCryoCAREImports(BaseTest):
     @classmethod
     def setUpClass(cls):
         setupTestProject(cls)
-        cls.dataset = DataSet.getDataSet('cryocare')
+        cls.dataset = DataSet.getDataSet('cryocare2')
 
     def testLoadTrainingData(self):
         protImportTD = self.newProtocol(
@@ -18,21 +20,23 @@ class TestCryoCAREImports(BaseTest):
             trainDataDir=self.dataset.getFile('training_data_dir'),
             trainConfigFile=self.dataset.getFile('training_data_conf'))
         self.launchProtocol(protImportTD)
-        output = getattr(protImportTD, 'train_data', None)
-        self.assertEqual(type(output), CryocareTrainData)
-        self.assertEqual(output.getTrainData(), self.dataset.getFile('train_data_file'))
-        self.assertEqual(output.getMeanStd(), self.dataset.getFile('mean_std_file'))
-        self.assertEqual(output.getPatchSize(), 64)
+        cryoCareTrainData = getattr(protImportTD, 'train_data', None)
+        testTrainDataDir = cryoCareTrainData.getTrainDataDir()
+        self.assertEqual(type(cryoCareTrainData), CryocareTrainData)
+        self.assertEqual(testTrainDataDir, self.dataset.getFile('training_data_dir'))
+        self.assertTrue(exists(join(testTrainDataDir, TRAIN_DATA_FN)))
+        self.assertTrue(exists(join(testTrainDataDir, VALIDATION_DATA_FN)))
+        self.assertEqual(cryoCareTrainData.getPatchSize(), 72)
 
     def testLoadTrainingModel(self):
         protImportTM = self.newProtocol(
             ProtCryoCARELoadModel,
             basedir=self.dataset.getFile('model_dir'),
-            meanStd=self.dataset.getFile('mean_std_file'))
+            trainDataDir=self.dataset.getFile('training_data_dir'))
         self.launchProtocol(protImportTM)
-        output = getattr(protImportTM, 'model', None)
-        self.assertEqual(type(output), CryocareModel)
-        self.assertEqual(output.getPath(), self.dataset.getFile('model_dir'))
-        self.assertEqual(output.getMeanStd(), self.dataset.getFile('mean_std_file'))
+        cryoCareModel = getattr(protImportTM, 'model', None)
+        self.assertEqual(type(cryoCareModel), CryocareModel)
+        self.assertEqual(cryoCareModel.getPath(), protImportTM._getExtraPath())
+        self.assertEqual(cryoCareModel.getTrainDataDir(), protImportTM._getExtraPath())
 
 
