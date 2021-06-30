@@ -28,5 +28,4 @@
 from .protocol_training import ProtCryoCARETraining
 from .protocol_predict import ProtCryoCAREPrediction
 from .protocol_prepare_training_data import ProtCryoCAREPrepareTrainingData
-from .protocol_load_train_data import ProtCryoCARELoadTrainData
 from .protocol_load_model import ProtCryoCARELoadModel
