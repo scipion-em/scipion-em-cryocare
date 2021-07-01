@@ -26,15 +26,13 @@
 
 import pwem
 import os
-from pyworkflow import Config
 from pyworkflow.utils import Environ
 from cryocare.constants import CRYOCARE_ENV_ACTIVATION, DEFAULT_ACTIVATION_CMD, CRYOCARE_ENV_NAME, \
-    CRYOCARE_DEFAULT_VERSION, CRYOCARE_HOME, CRYOCARE_CUDA_LIB
+    CRYOCARE_DEFAULT_VERSION, CRYOCARE_HOME, CRYOCARE_CUDA_LIB, CRYOCARE
 
 _logo = "icon.png"
 _references = ['buchholz2019cryo', 'buchholz2019content']
-__version__ = "3.0.0a1"
-cryoCARE = 'cryoCARE'
+__version__ = "3.0.1"
 
 
 class Plugin(pwem.Plugin):
@@ -49,9 +47,7 @@ class Plugin(pwem.Plugin):
 
     @classmethod
     def getCryocareEnvActivation(cls):
-        activation = cls.getVar(CRYOCARE_ENV_ACTIVATION)
-        scipionHome = Config.SCIPION_HOME + os.path.sep
-        return activation.replace(scipionHome, "", 1)
+        return cls.getVar(CRYOCARE_ENV_ACTIVATION)
 
     @classmethod
     def getEnviron(cls, gpuId='0'):
@@ -69,32 +65,28 @@ class Plugin(pwem.Plugin):
 
     @classmethod
     def defineBinaries(cls, env):
-        CRYOCARE_INSTALLED = '%s_%s_installed' % (cryoCARE, CRYOCARE_DEFAULT_VERSION)
+        CRYOCARE_INSTALLED = '%s_%s_installed' % (CRYOCARE, CRYOCARE_DEFAULT_VERSION)
 
         # try to get CONDA activation command
         installationCmd = cls.getCondaActivationCmd()
 
         # Create the environment
-        installationCmd += 'conda create -y -n %s -c conda-forge -c anaconda python=3.6 ' \
-                           'cudatoolkit==10.0.130 && ' % CRYOCARE_ENV_NAME
+        installationCmd += 'conda create -y -n %s -c conda-forge -c anaconda python=3.8 ' \
+                           'cudnn=7.6.5=cuda10.1_0 && ' % CRYOCARE_ENV_NAME
 
         # Activate new the environment
         installationCmd += 'conda activate %s && ' % CRYOCARE_ENV_NAME
 
         # Install non-conda required packages
-        installationCmd += 'pip install "opt-einsum==2.3.2" '
-        installationCmd += 'pip install "tensorflow-gpu==1.15" '
-        installationCmd += 'pip install "numpy<1.19.0,>=1.16.0" '
+        installationCmd += 'pip install tensorflow-gpu==2.3.3 && '
         installationCmd += 'pip install mrcfile && '
-        installationCmd += 'pip install csbdeep && '
-        installationCmd += 'pip install "h5py<3.0.0" '
+        installationCmd += 'pip install csbdeep '
         # I had the same issue and was able to fix this by setting h5py < 3.0.0.
         # Looks like here was a 3.0 release of h5py recently where they changed how strings are stored/read.
         # https://github.com/keras-team/keras/issues/14265
 
-
         # Install cryoCARE
-        installationCmd += 'pip install cryoCARE &&'
+        installationCmd += 'pip install %s==%s &&' % (CRYOCARE, CRYOCARE_DEFAULT_VERSION)
 
         # Flag installation finished
         installationCmd += 'touch %s' % CRYOCARE_INSTALLED
@@ -104,7 +96,7 @@ class Plugin(pwem.Plugin):
         envPath = os.environ.get('PATH', "")  # keep path since conda likely in there
         installEnvVars = {'PATH': envPath} if envPath else None
 
-        env.addPackage(cryoCARE,
+        env.addPackage(CRYOCARE,
                        version=CRYOCARE_DEFAULT_VERSION,
                        tar='void.tgz',
                        commands=cryocare_commands,
