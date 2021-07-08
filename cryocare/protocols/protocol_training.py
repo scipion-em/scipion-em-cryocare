@@ -2,19 +2,22 @@ import json
 import operator
 
 from pwem.protocols import EMProtocol
-from pyworkflow.protocol import IntParam, PointerParam, FloatParam, params, GT, LEVEL_ADVANCED, GE
+from pyworkflow import BETA
+from pyworkflow.protocol import IntParam, PointerParam, FloatParam, params, GT, LEVEL_ADVANCED, GE, Positive
 from pyworkflow.utils import Message
 from scipion.constants import PYTHON
 
 from cryocare import Plugin
 from cryocare.constants import CRYOCARE_MODEL
 from cryocare.objects import CryocareModel
+from cryocare.utils import makeDatasetSymLinks
 
 
 class ProtCryoCARETraining(EMProtocol):
     """Use two data-independent reconstructed tomograms to train a 3D cryo-CARE network."""
 
     _label = 'CryoCARE Training'
+    _devStatus = BETA
     _configPath = None
 
     # -------------------------- DEFINE param functions ----------------------
@@ -33,18 +36,23 @@ class ProtCryoCARETraining(EMProtocol):
                       help='Training data extracted from even and odd tomograms.')
         form.addSection(label='Training Parameters')
         form.addParam('epochs', IntParam,
-                      default=200,
+                      default=100,
                       label='Training epochs',
-                      validators=[GT(0)],
+                      validators=[Positive],
                       help='Number of epochs for which the network is trained. '
                            'An epoch refers to one cycle through the full training dataset. '
                            'It gives the network a chance to see the previous data to readjust '
                            'the model parameters so that the model is not biased towards the '
                            'last few data points during training.')
+        form.addParam('steps_per_epoch', IntParam,
+                      label='Steps per epoch',
+                      default=200,
+                      validators=[Positive],
+                      help='Number of gradient steps performed per epoch.')
         form.addParam('batch_size', IntParam,
                       default=16,
                       label='Batch size',
-                      validators=[GT(0)],
+                      validators=[Positive],
                       help='Size of the training batch. '
                            'An entire big dataset cannot be passed into the neural net at once, '
                            'so it is divided into batches. The batch size is the total number of '
@@ -52,7 +60,7 @@ class ProtCryoCARETraining(EMProtocol):
         form.addParam('learning_rate', FloatParam,
                       default=0.0004,
                       label='Learning rate',
-                      validators=[GT(0)],
+                      validators=[Positive],
                       expertLevel=LEVEL_ADVANCED,
                       help='Training learning rate. '
                            'In machine learning and statistics, the learning rate is a tuning '
@@ -86,14 +94,22 @@ class ProtCryoCARETraining(EMProtocol):
                        help="GPU ID, normally it is 0.")
 
     def _insertAllSteps(self):
-        self._insertFunctionStep('prepareTrainingStep')
-        self._insertFunctionStep('trainingStep')
-        self._insertFunctionStep('createOutputStep')
+        self._initialize()
+        self._insertFunctionStep(self.prepareTrainingStep)
+        self._insertFunctionStep(self.trainingStep)
+        self._insertFunctionStep(self.createOutputStep)
+
+    def _initialize(self):
+        # The prediction is expecting the training and validation datasets to be in the same place as the training
+        # model, but they are located in the training data generation extra directory. Hence, a symbolic link will
+        # be created for each one
+        makeDatasetSymLinks(self, self._getPreparedTrainingDataDir())
 
     def prepareTrainingStep(self):
         config = {
-            'train_data': self.train_data.get().getTrainData(),
+            'train_data': self.train_data.get().getTrainDataDir(),
             'epochs': self.epochs.get(),
+            'steps_per_epoch': self.steps_per_epoch.get(),
             'batch_size': self.batch_size.get(),
             'unet_kern_size': self.unet_kern_size.get(),
             'unet_n_depth': self._getUNetDepth(),
@@ -113,7 +129,7 @@ class ProtCryoCARETraining(EMProtocol):
 
     def createOutputStep(self):
         model = CryocareModel(basedir=self._getExtraPath(),
-                              mean_std=self.train_data.get().getMeanStd())
+                              train_data_dir=self._getPreparedTrainingDataDir())
         self._defineOutputs(model=model)
 
     # --------------------------- INFO functions -----------------------------------
@@ -121,11 +137,7 @@ class ProtCryoCARETraining(EMProtocol):
         summary = []
 
         if self.isFinished():
-            summary.append("Generated training model info:\n"
-                           "model_dir = *{}*\n"
-                           "normalization_file = *{}*".format
-                           (self._getExtraPath(CRYOCARE_MODEL),
-                            self.train_data.get().getMeanStd()))
+            summary.append("Generated training model in location: *%s*" % self._getExtraPath(CRYOCARE_MODEL))
         return summary
 
     def _validate(self):
@@ -147,4 +159,7 @@ class ProtCryoCARETraining(EMProtocol):
             return netDepth[ind]
         else:
             return self.unet_n_depth.get()
+
+    def _getPreparedTrainingDataDir(self):
+        return self.train_data.get().getTrainDataDir()
 
