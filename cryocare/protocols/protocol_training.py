@@ -1,5 +1,6 @@
 import json
 import operator
+from enum import Enum
 
 from pwem.protocols import EMProtocol
 from pyworkflow import BETA
@@ -13,11 +14,16 @@ from cryocare.objects import CryocareModel
 from cryocare.utils import makeDatasetSymLinks
 
 
+class outputObjects(Enum):
+    model = CryocareModel
+
+
 class ProtCryoCARETraining(EMProtocol):
     """Use two data-independent reconstructed tomograms to train a 3D cryo-CARE network."""
 
     _label = 'CryoCARE Training'
     _devStatus = BETA
+    _possibleOutputs = outputObjects
     _configPath = None
 
     # -------------------------- DEFINE param functions ----------------------
@@ -130,7 +136,8 @@ class ProtCryoCARETraining(EMProtocol):
     def createOutputStep(self):
         model = CryocareModel(basedir=self._getExtraPath(),
                               train_data_dir=self._getPreparedTrainingDataDir())
-        self._defineOutputs(model=model)
+        self._defineOutputs(**{outputObjects.model.name: model})
+        self._defineSourceRelation(self.train_data.get(), model)
 
     # --------------------------- INFO functions -----------------------------------
     def _summary(self):

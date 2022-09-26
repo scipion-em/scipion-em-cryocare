@@ -1,4 +1,5 @@
 import json
+from enum import Enum
 from os.path import abspath, join
 
 from pwem.protocols import EMProtocol
@@ -8,11 +9,15 @@ from pyworkflow.utils import Message, removeBaseExt, makePath
 from scipion.constants import PYTHON
 
 from cryocare import Plugin
-from tomo.objects import Tomogram
+from tomo.objects import Tomogram, SetOfTomograms
 from tomo.protocols import ProtTomoBase
 
 from cryocare.constants import PREDICT_CONFIG, CRYOCARE_MODEL
 from cryocare.utils import CryocareUtils as ccutils
+
+
+class outputObjects(Enum):
+    tomograms = SetOfTomograms
 
 
 class ProtCryoCAREPrediction(EMProtocol, ProtTomoBase):
@@ -20,9 +25,10 @@ class ProtCryoCAREPrediction(EMProtocol, ProtTomoBase):
 tomograms followed by per-pixel averaging."""
 
     _label = 'CryoCARE Prediction'
+    _devStatus = BETA
+    _possibleOutputs = outputObjects
     _configPath = []
     _outputFiles = []
-    _devStatus = BETA
 
     # -------------------------- DEFINE param functions ----------------------
     def _defineParams(self, form):
@@ -110,7 +116,10 @@ tomograms followed by per-pixel averaging."""
             tomo.setSamplingRate(inTomo.getSamplingRate())
             outputSetOfTomo.append(tomo)
 
-        self._defineOutputs(outputTomograms=outputSetOfTomo)
+        self._defineOutputs(**{outputObjects.tomograms.name: outputSetOfTomo})
+        self._defineSourceRelation(self.even.get(), outputSetOfTomo)
+        self._defineSourceRelation(self.odd.get(), outputSetOfTomo)
+        self._defineSourceRelation(self.model.get(), outputSetOfTomo)
 
     # --------------------------- INFO functions -----------------------------------
     def _summary(self):

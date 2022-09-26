@@ -1,4 +1,5 @@
 import glob
+from enum import Enum
 from os.path import exists, join
 
 from pwem.protocols import EMProtocol
@@ -11,11 +12,16 @@ from cryocare.objects import CryocareModel
 from cryocare.utils import makeDatasetSymLinks
 
 
+class outputObjects(Enum):
+    model = CryocareModel
+
+
 class ProtCryoCARELoadModel(EMProtocol):
     """Use two data-independent reconstructed tomograms to train a 3D cryo-CARE network."""
 
     _label = 'CryoCARE Load Model'
     _devStatus = BETA
+    _possibleOutputs = outputObjects
 
     # -------------------------- DEFINE param functions ----------------------
     def _defineParams(self, form):
@@ -50,7 +56,7 @@ class ProtCryoCARELoadModel(EMProtocol):
 
     def createOutputStep(self):
         model = CryocareModel(basedir=self._getExtraPath(), train_data_dir=self._getExtraPath())
-        self._defineOutputs(model=model)
+        self._defineOutputs(**{outputObjects.model.name: model})
 
     # --------------------------- INFO functions -----------------------------------
     def _validate(self):

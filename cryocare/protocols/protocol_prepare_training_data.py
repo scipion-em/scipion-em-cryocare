@@ -1,5 +1,6 @@
 import glob
 import json
+from enum import Enum
 from os.path import join
 import numpy as np
 
@@ -23,12 +24,17 @@ Y_AXIS_LABEL = 'Y'
 Z_AXIS_LABEL = 'Z'
 
 
+class outputObjects(Enum):
+    train_data = CryocareTrainData
+
+
 class ProtCryoCAREPrepareTrainingData(EMProtocol):
     """Operate the data to make it be expressed as expected by cryoCARE net."""
 
     _label = 'CryoCARE Training Data Extraction'
     _devStatus = BETA
     _configFile = None
+    _possibleOutputs = outputObjects
 
     # -------------------------- DEFINE param functions ----------------------
 
@@ -101,7 +107,6 @@ class ProtCryoCAREPrepareTrainingData(EMProtocol):
         self._insertFunctionStep(self.createOutputStep)
 
     def _initialize(self):
-        makePath(self._getTrainDataDir())
         makePath(self._getTrainDataConfDir())
         self._configFile = join(self._getTrainDataConfDir(), TRAIN_DATA_CONFIG)
 
@@ -126,7 +131,9 @@ class ProtCryoCAREPrepareTrainingData(EMProtocol):
         # Generate a train data object containing the resulting data
         train_data = CryocareTrainData(train_data_dir=self._getTrainDataDir(),
                                        patch_size=self.patch_shape.get())
-        self._defineOutputs(train_data=train_data)
+        self._defineOutputs(**{outputObjects.train_data.name: train_data})
+        self._defineSourceRelation(self.evenTomos.get(), train_data)
+        self._defineSourceRelation(self.oddTomos.get(), train_data)
 
     # --------------------------- INFO functions -----------------------------------
     def _summary(self):
