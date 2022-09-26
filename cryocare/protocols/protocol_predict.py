@@ -90,12 +90,12 @@ tomograms followed by per-pixel averaging."""
         outputName = self._getOutputName(evenTomo)
         self._outputFiles.append(outputName)
         config = {
-            'model_name': CRYOCARE_MODEL,
             'path': self.model.get().getPath(),
             'even': evenTomo,
             'odd': oddTomo,
+            'n_tiles': str([int(i) for i in self.n_tiles.get().split()]),
             'output': outputName,
-            'n_tiles': [int(i) for i in self.n_tiles.get().split()]
+            'overwrite': False
         }
         self._configPath.append(join(self._getPredictConfDir(), '{}_{:03d}.json'.format(PREDICT_CONFIG, numTomo)))
         with open(self._configPath[numTomo], 'w+') as f:

@@ -1,5 +1,7 @@
+from os.path import join
 
 import pyworkflow.object as pwobj
+from cryocare.constants import CRYOCARE_MODEL
 from pwem import EMObject
 
 
@@ -26,7 +28,7 @@ class CryocareModel(EMObject):
         self._train_data_dir = pwobj.String(train_data_dir)
 
     def getPath(self):
-        return self._basedir.get()
+        return join(self._basedir.get(), CRYOCARE_MODEL)
 
     def getTrainDataDir(self):
         return self._train_data_dir.get()

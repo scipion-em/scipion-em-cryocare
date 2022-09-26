@@ -36,7 +36,6 @@ __version__ = "3.0.1"
 
 
 class Plugin(pwem.Plugin):
-
     _homeVar = CRYOCARE_HOME
     _url = 'https://github.com/scipion-em/scipion-em-cryocare'
 
@@ -72,13 +71,14 @@ class Plugin(pwem.Plugin):
 
         # Create the environment
         installationCmd += 'conda create -y -n %s -c conda-forge -c anaconda python=3.8 ' \
-                           'keras-gpu=2.3.1 ' \
-                           'cudnn=7.6.5=cuda10.1_0 && ' % CRYOCARE_ENV_NAME
+                           'cudnn=8.0 && ' % CRYOCARE_ENV_NAME
+        # 'keras-gpu=2.3.1 ' \
 
         # Activate new the environment
         installationCmd += 'conda activate %s && ' % CRYOCARE_ENV_NAME
 
         # Install cryoCARE
+        installationCmd += 'pip install tensorflow==2.4 && '
         installationCmd += 'pip install %s==%s &&' % (CRYOCARE, CRYOCARE_DEFAULT_VERSION)
 
         # Flag installation finished
