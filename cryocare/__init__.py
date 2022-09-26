@@ -72,15 +72,13 @@ class Plugin(pwem.Plugin):
 
         # Create the environment
         installationCmd += 'conda create -y -n %s -c conda-forge -c anaconda python=3.8 ' \
+                           'keras-gpu=2.3.1 ' \
                            'cudnn=7.6.5=cuda10.1_0 && ' % CRYOCARE_ENV_NAME
 
         # Activate new the environment
         installationCmd += 'conda activate %s && ' % CRYOCARE_ENV_NAME
 
         # Install cryoCARE
-        installationCmd += 'pip install tensorflow-gpu==2.3.3 && '
-        installationCmd += 'pip install tifffile==2020.10.1 && '
-        installationCmd += 'pip install "filelock<4,>=3.0.0" && '
         installationCmd += 'pip install %s==%s &&' % (CRYOCARE, CRYOCARE_DEFAULT_VERSION)
 
         # Flag installation finished
