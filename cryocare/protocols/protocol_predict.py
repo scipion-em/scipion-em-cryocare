@@ -2,18 +2,16 @@ import json
 from enum import Enum
 from os.path import abspath, join
 
+from cryocare.utils import checkInputTomoSetsSize
 from pwem.protocols import EMProtocol
 from pyworkflow import BETA
 from pyworkflow.protocol import params, StringParam
 from pyworkflow.utils import Message, removeBaseExt, makePath
 from scipion.constants import PYTHON
-
 from cryocare import Plugin
 from tomo.objects import Tomogram, SetOfTomograms
 from tomo.protocols import ProtTomoBase
-
-from cryocare.constants import PREDICT_CONFIG, CRYOCARE_MODEL
-from cryocare.utils import CryocareUtils as ccutils
+from cryocare.constants import PREDICT_CONFIG
 
 
 class outputObjects(Enum):
@@ -127,16 +125,15 @@ tomograms followed by per-pixel averaging."""
         summary = []
 
         if self.isFinished():
-            summary.append(
-                "Tomogram denoising finished.")
+            summary.append("Tomogram denoising finished.")
         return summary
 
     def _validate(self):
         validateMsgs = []
 
-        msg = ccutils.checkInputTomoSetsSize(self.even.get(), self.odd.get())
+        msg = checkInputTomoSetsSize(self.even.get(), self.odd.get())
         if msg:
-            validateMsgs.append()
+            validateMsgs.append(msg)
         return validateMsgs
 
     # --------------------------- UTIL functions -----------------------------------

@@ -4,6 +4,7 @@ from enum import Enum
 from os.path import join
 import numpy as np
 
+from cryocare.utils import checkInputTomoSetsSize
 from pwem.protocols import EMProtocol
 from pyworkflow import BETA
 from pyworkflow.protocol import params, IntParam, FloatParam, Positive, LT, GT, LEVEL_ADVANCED, EnumParam
@@ -13,7 +14,6 @@ from scipion.constants import PYTHON
 from cryocare import Plugin
 from cryocare.constants import TRAIN_DATA_DIR, TRAIN_DATA_FN, TRAIN_DATA_CONFIG, VALIDATION_DATA_FN
 from cryocare.objects import CryocareTrainData
-from cryocare.utils import CryocareUtils as ccutils
 
 # Tilt axis values
 X_AXIS = 0
@@ -152,9 +152,9 @@ class ProtCryoCAREPrepareTrainingData(EMProtocol):
     def _validate(self):
         validateMsgs = []
 
-        msg = ccutils.checkInputTomoSetsSize(self.evenTomos.get(), self.oddTomos.get())
+        msg = checkInputTomoSetsSize(self.evenTomos.get(), self.oddTomos.get())
         if msg:
-            validateMsgs.append()
+            validateMsgs.append(msg)
 
         if self.patch_shape.get() % 2 != 0:
             validateMsgs.append('Patch shape has to be an even number.')

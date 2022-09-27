@@ -1,15 +1,14 @@
-import glob
 from enum import Enum
 from os.path import exists, join
 
+from cryocare.utils import makeDatasetSymLinks, getModelName
 from pwem.protocols import EMProtocol
 from pyworkflow import BETA
 from pyworkflow.protocol import PathParam, FileParam
 from pyworkflow.utils import Message, createLink
 
-from cryocare.constants import TRAIN_DATA_FN, VALIDATION_DATA_FN, CRYOCARE_MODEL
+from cryocare.constants import TRAIN_DATA_FN, VALIDATION_DATA_FN
 from cryocare.objects import CryocareModel
-from cryocare.utils import makeDatasetSymLinks
 
 
 class outputObjects(Enum):
@@ -31,11 +30,16 @@ class ProtCryoCARELoadModel(EMProtocol):
         """
         # You need a params to belong to a section:
         form.addSection(label=Message.LABEL_INPUT)
-        form.addParam('basedir', PathParam,
-                      label='Base directory of the trained cryoCARE model',
+        form.addParam('trainDataModel', PathParam,
+                      label='Pre-trained cryoCARE model (.tar.gz)',
                       important=True,
                       allowsNull=False,
-                      help='It must contain a model in .h5 format.')
+                      help='It is a .tar.gz file containing a folder that contains, in turn, the following files:\n\n'
+                           '\t- config.json\n'
+                           '\t- history.dat\n'
+                           '\t- norm.json\n'
+                           '\t- weights_best.h5\n'
+                           '\t- weights_last.h5\n')
         form.addParam('trainDataDir', FileParam,
                       label='Directory of the prepared data for training',
                       important=True,
@@ -52,19 +56,17 @@ class ProtCryoCARELoadModel(EMProtocol):
         # model, but they are located in the training data generation extra directory. Hence, a symbolic link will
         # be created
         makeDatasetSymLinks(self, self.trainDataDir.get())
-        createLink(join('..', self.basedir.get()), self._getExtraPath(CRYOCARE_MODEL))
+        createLink(join(self.trainDataModel.get()), getModelName(self))
 
     def createOutputStep(self):
-        model = CryocareModel(basedir=self._getExtraPath(), train_data_dir=self._getExtraPath())
+        model = CryocareModel(model_file=getModelName(self), train_data_dir=self._getExtraPath())
         self._defineOutputs(**{outputObjects.model.name: model})
 
     # --------------------------- INFO functions -----------------------------------
     def _validate(self):
         errors = []
-        if not exists(self.basedir.get()):
-            errors.append('Training model base directory does not exists.')
-        elif not glob.glob(join(self.basedir.get(), '*.h5')):
-            errors.append('No model files were found in the introduced training model base directory.')
+        if not exists(self.trainDataModel.get()):
+            errors.append('Training model introduced does not exists.')
 
         if not exists(self.trainDataDir.get()):
             errors.append('Directory of the prepared data for training does not exists.')
@@ -81,5 +83,6 @@ class ProtCryoCARELoadModel(EMProtocol):
         summary = []
 
         if self.isFinished():
-            summary.append("Loaded training model_dir = *%s*" % self.basedir.get())
+            summary.append("Loaded training model_dir = *%s*" % self.trainDataModel.get())
         return summary
+

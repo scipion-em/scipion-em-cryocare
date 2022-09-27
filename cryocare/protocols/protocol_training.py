@@ -2,16 +2,15 @@ import json
 import operator
 from enum import Enum
 
+from cryocare.utils import makeDatasetSymLinks, getModelName
 from pwem.protocols import EMProtocol
 from pyworkflow import BETA
 from pyworkflow.protocol import IntParam, PointerParam, FloatParam, params, GT, LEVEL_ADVANCED, GE, Positive
 from pyworkflow.utils import Message
 from scipion.constants import PYTHON
-
 from cryocare import Plugin
 from cryocare.constants import CRYOCARE_MODEL
 from cryocare.objects import CryocareModel
-from cryocare.utils import makeDatasetSymLinks
 
 
 class outputObjects(Enum):
@@ -134,7 +133,7 @@ class ProtCryoCARETraining(EMProtocol):
                            gpuId=getattr(self, params.GPU_LIST).get())
 
     def createOutputStep(self):
-        model = CryocareModel(basedir=self._getExtraPath(),
+        model = CryocareModel(model_file=getModelName(self),
                               train_data_dir=self._getPreparedTrainingDataDir())
         self._defineOutputs(**{outputObjects.model.name: model})
         self._defineSourceRelation(self.train_data.get(), model)

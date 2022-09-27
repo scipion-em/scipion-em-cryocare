@@ -22,13 +22,13 @@ class CryocareTrainData(EMObject):
 
 
 class CryocareModel(EMObject):
-    def __init__(self, basedir=None, train_data_dir=None, **kwargs):
+    def __init__(self, model_file=None, train_data_dir=None, **kwargs):
         EMObject.__init__(self, **kwargs)
-        self._basedir = pwobj.String(basedir)
+        self._model_file = pwobj.String(model_file)
         self._train_data_dir = pwobj.String(train_data_dir)
 
     def getPath(self):
-        return join(self._basedir.get(), CRYOCARE_MODEL)
+        return self._model_file.get()
 
     def getTrainDataDir(self):
         return self._train_data_dir.get()
