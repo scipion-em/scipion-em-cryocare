@@ -135,7 +135,7 @@ class TestCryoCARE(BaseTest):
         self.assertEqual(output.getDim(), (1236, 1279, 209))
         self.assertEqual(output.getSize(), 1)
         self.assertEqual(output.getSamplingRate(), self.sRate)
-        self.assertTrue(exists(protPredict._getExtraPath('Tomo110_bin6_denoised.mrc')))
+        self.assertTrue(exists(protPredict._getExtraPath('Tomo110__bin6_denoised', 'Tomo110__bin6.mrc')))
 
     def testWorkflow(self):
         importTomoProtEven = self._runImportTomograms(DataSetCryoCARE.tomo_even.name, 'even')
