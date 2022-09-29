@@ -151,14 +151,25 @@ class ProtCryoCAREPrepareTrainingData(EMProtocol):
 
     def _validate(self):
         validateMsgs = []
-
-        msg = checkInputTomoSetsSize(self.evenTomos.get(), self.oddTomos.get())
+        sideLength = self.patch_shape.get()
+        evenTomos = self.evenTomos.get()
+        oddTomos = self.oddTomos.get()
+        xe, ye, ze = evenTomos.getDimensions()
+        xo, yo, zo = oddTomos.getDimensions()
+        # Check the length and the dimensions of the sets introduced
+        msg = checkInputTomoSetsSize(evenTomos, oddTomos)
         if msg:
             validateMsgs.append(msg)
-
-        if self.patch_shape.get() % 2 != 0:
+        # Check the patch conditions
+        if sideLength % 2 != 0:
             validateMsgs.append('Patch shape has to be an even number.')
-
+        for idim in [xe, ye, ze, xo, yo, zo]:
+            if idim <= 2 * sideLength:
+                validateMsgs.append('X, Y and Z dimensions of the tomograms introduced must satisfy the '
+                                    'condition\n\n*dimension > 2 x SideLength*\n\n'
+                                    '(X, Y, Z) = (%i, %i, %i)\n'
+                                    'SideLength = %i\n\n' % (xe, ye, ze, sideLength))
+                break
         return validateMsgs
 
     # --------------------------- UTIL functions -----------------------------------

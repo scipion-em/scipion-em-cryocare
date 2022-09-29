@@ -46,7 +46,7 @@ class TestCryoCARE(BaseTest):
     def setUpClass(cls):
         setupTestProject(cls)
         cls.dataset = DataSet.getDataSet('cryocare')
-        cls.sRate = 2.355
+        cls.sRate = 4.71
 
     def _runImportTomograms(self, tomoFile, mode):
         print(magentaStr("\n==> Importing the %s tomograms:" % mode))
@@ -61,16 +61,20 @@ class TestCryoCARE(BaseTest):
 
     def _runPrepareTrainingData(self, protImportEven, protImportOdd):
         print(magentaStr("\n==> Preparing the training data:"))
+        patchSize = 40
         protPrepTrainingData = self.newProtocol(ProtCryoCAREPrepareTrainingData,
                                                 evenTomos=protImportEven.outputTomograms,
-                                                oddTomos=protImportOdd.outputTomograms)
+                                                oddTomos=protImportOdd.outputTomograms,
+                                                patch_shape=patchSize,
+                                                num_slices=400,
+                                                n_normalization_samples=60)
         self.launchProtocol(protPrepTrainingData)
         cryoCareTrainData = getattr(protPrepTrainingData, prepTrainDataOutputs.train_data.name, None)
 
         # Check generated object
         self.assertEqual(type(cryoCareTrainData), CryocareTrainData)
         self.assertEqual(cryoCareTrainData.getTrainDataDir(), protPrepTrainingData._getExtraPath(TRAIN_DATA_DIR))
-        self.assertEqual(cryoCareTrainData.getPatchSize(), 72)
+        self.assertEqual(cryoCareTrainData.getPatchSize(), patchSize)
         # Check files generated
         self.assertTrue(exists(protPrepTrainingData._getExtraPath(TRAIN_DATA_DIR, TRAIN_DATA_FN)))
         self.assertTrue(exists(protPrepTrainingData._getExtraPath(TRAIN_DATA_DIR, VALIDATION_DATA_FN)))
@@ -79,14 +83,11 @@ class TestCryoCARE(BaseTest):
         return protPrepTrainingData
 
     def _runTrainingData(self, protPrepTrainingData):
-        # # Skipped because of it long execution time. Generated model was stored as part of the test
-        # # dataset and imported in the prediction test
-        # print(magentaStr("\n==> Skipping training due to its long execution time"))
-        # return []
         print(magentaStr("\n==> Training"))
         protTraining = self.newProtocol(ProtCryoCARETraining,
                                         train_data=getattr(protPrepTrainingData, 'train_data', None),
-                                        batch_size=8)
+                                        epochs=2,
+                                        steps_per_epoch=10)
 
         self.launchProtocol(protTraining)
         cryoCareModel = getattr(protTraining, trainOutputs.model.name, None)
@@ -132,7 +133,7 @@ class TestCryoCARE(BaseTest):
 
         self.launchProtocol(protPredict)
         output = getattr(protPredict, predictOutputs.tomograms.name, None)
-        self.assertEqual(output.getDim(), (1236, 1279, 209))
+        self.assertEqual(output.getDim(), (618, 639, 104))
         self.assertEqual(output.getSize(), 1)
         self.assertEqual(output.getSamplingRate(), self.sRate)
         self.assertTrue(exists(protPredict._getExtraPath('Tomo110__bin6_denoised', 'Tomo110__bin6.mrc')))
