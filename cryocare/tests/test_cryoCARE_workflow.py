@@ -25,19 +25,17 @@
 # **************************************************************************
 
 from os.path import exists
-from pyworkflow.tests import BaseTest, setupTestProject
+from cryocare.tests import CRYOCARE, DataSetCryoCARE
+from pyworkflow.tests import BaseTest, setupTestProject, DataSet
 from pyworkflow.utils import magentaStr
 from tomo.protocols import ProtImportTomograms
-from cryocare.protocols.protocol_prepare_training_data import outputObjects as prepTrainDataOutputs
-from cryocare.protocols.protocol_load_model import outputObjects as loadTrainingModelOutputs
-from cryocare.protocols.protocol_training import outputObjects as trainOutputs
-from cryocare.protocols.protocol_predict import outputObjects as predictOutputs
-
-from . import DataSet, DataSetCryoCARE, CRYOCARE
-from ..constants import TRAIN_DATA_FN, TRAIN_DATA_CONFIG, TRAIN_DATA_DIR, VALIDATION_DATA_FN, CRYOCARE_MODEL_TGZ
-from ..objects import CryocareTrainData, CryocareModel
-from ..protocols import ProtCryoCAREPrediction, ProtCryoCAREPrepareTrainingData, ProtCryoCARELoadModel, \
-    ProtCryoCARETraining
+from cryocare.protocols.protocol_prepare_training_data import outputObjects as prepTrainDataOutputs, \
+    ProtCryoCAREPrepareTrainingData
+from cryocare.protocols.protocol_load_model import outputObjects as loadTrainingModelOutputs, ProtCryoCARELoadModel
+from cryocare.protocols.protocol_training import outputObjects as trainOutputs, ProtCryoCARETraining
+from cryocare.protocols.protocol_predict import outputObjects as predictOutputs, ProtCryoCAREPrediction
+from cryocare.constants import TRAIN_DATA_FN, TRAIN_DATA_CONFIG, TRAIN_DATA_DIR, VALIDATION_DATA_FN, CRYOCARE_MODEL_TGZ
+from cryocare.objects import CryocareTrainData, CryocareModel
 
 
 class TestCryoCARE(BaseTest):
