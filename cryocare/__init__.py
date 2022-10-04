@@ -77,7 +77,8 @@ class Plugin(pwem.Plugin):
         # Activate new the environment
         installationCmd += 'conda activate %s && ' % CRYOCARE_ENV_NAME
 
-        # Install cryoCARE
+        # Install cryoCARE and the rest of dependencies
+        installationCmd += 'virtualenv==20.3.1 && '
         installationCmd += 'pip install tensorflow-gpu==2.4.0 && '
         installationCmd += 'pip install %s==%s && ' % (CRYOCARE, CRYOCARE_DEFAULT_VERSION)
 
