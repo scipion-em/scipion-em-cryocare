@@ -32,7 +32,7 @@ from cryocare.constants import CRYOCARE_ENV_ACTIVATION, DEFAULT_ACTIVATION_CMD, 
 
 _logo = "icon.png"
 _references = ['buchholz2019cryo', 'buchholz2019content']
-__version__ = "3.0.1"
+__version__ = "3.1.0"
 
 
 class Plugin(pwem.Plugin):
