@@ -1,28 +1,65 @@
+# **************************************************************************
+# *
+# * Authors:     Scipion Team
+# *
+# * Unidad de  Bioinformatica of Centro Nacional de Biotecnologia , CSIC
+# *
+# * This program is free software; you can redistribute it and/or modify
+# * it under the terms of the GNU General Public License as published by
+# * the Free Software Foundation; either version 2 of the License, or
+# * (at your option) any later version.
+# *
+# * This program is distributed in the hope that it will be useful,
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# * GNU General Public License for more details.
+# *
+# * You should have received a copy of the GNU General Public License
+# * along with this program; if not, write to the Free Software
+# * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
+# * 02111-1307  USA
+# *
+# *  All comments concerning this program package may be sent to the
+# *  e-mail address 'scipion@cnb.csic.es'
+# *
+# **************************************************************************
+import glob
 import json
-from os.path import abspath, join
-
+import re
+import shutil
+from enum import Enum
+from os.path import join
+from cryocare.utils import checkInputTomoSetsSize
 from pwem.protocols import EMProtocol
 from pyworkflow import BETA
 from pyworkflow.protocol import params, StringParam
-from pyworkflow.utils import Message, removeBaseExt, makePath
+from pyworkflow.utils import Message, makePath
 from scipion.constants import PYTHON
-
 from cryocare import Plugin
-from tomo.objects import Tomogram
-from tomo.protocols import ProtTomoBase
-
-from cryocare.constants import PREDICT_CONFIG, CRYOCARE_MODEL
-from cryocare.utils import CryocareUtils as ccutils
+from tomo.objects import Tomogram, SetOfTomograms
+from cryocare.constants import PREDICT_CONFIG
 
 
-class ProtCryoCAREPrediction(EMProtocol, ProtTomoBase):
+DENOISED_SUFFIX = 'denoised'
+EVEN = 'even'
+
+
+class outputObjects(Enum):
+    tomograms = SetOfTomograms
+
+
+class ProtCryoCAREPrediction(EMProtocol):
     """Generate the final restored tomogram by applying the cryoCARE trained network to both
 tomograms followed by per-pixel averaging."""
 
     _label = 'CryoCARE Prediction'
-    _configPath = []
-    _outputFiles = []
     _devStatus = BETA
+    _possibleOutputs = outputObjects
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._configPath = {}
+        self.sRate = None
 
     # -------------------------- DEFINE param functions ----------------------
     def _defineParams(self, form):
@@ -70,47 +107,53 @@ tomograms followed by per-pixel averaging."""
 
     # --------------------------- STEPS functions ------------------------------
     def _insertAllSteps(self):
-        numTomo = 0
-        makePath(self._getPredictConfDir())
+        self._initialize()
         # Insert processing steps
         for evenTomo, oddTomo in zip(self.even.get(), self.odd.get()):
-            self._insertFunctionStep(self.preparePredictStep, evenTomo.getFileName(), oddTomo.getFileName(), numTomo)
-            self._insertFunctionStep(self.predictStep, numTomo)
-            numTomo += 1
+            tsId = evenTomo.getTsId()
+            self._insertFunctionStep(self.preparePredictStep, evenTomo.getFileName(), oddTomo.getFileName(), tsId)
+            self._insertFunctionStep(self.predictStep, tsId)
+            self._insertFunctionStep(self.createOutputStep, tsId)
 
-        self._insertFunctionStep(self.createOutputStep)
+    def _initialize(self):
+        makePath(self._getPredictConfDir())
+        self.sRate = self.even.get().getSamplingRate()
 
-    def preparePredictStep(self, evenTomo, oddTomo, numTomo):
-        outputName = self._getOutputName(evenTomo)
-        self._outputFiles.append(outputName)
+    def preparePredictStep(self, evenTomo, oddTomo, tsId):
         config = {
-            'model_name': CRYOCARE_MODEL,
             'path': self.model.get().getPath(),
             'even': evenTomo,
             'odd': oddTomo,
-            'output_name': outputName,
-            'n_tiles': [int(i) for i in self.n_tiles.get().split()]
+            'n_tiles': [int(i) for i in self.n_tiles.get().split()],
+            'output': self._getOutputPath(tsId),
+            'overwrite': False
         }
-        self._configPath.append(join(self._getPredictConfDir(), '{}_{:03d}.json'.format(PREDICT_CONFIG, numTomo)))
-        with open(self._configPath[numTomo], 'w+') as f:
+        self._configPath[tsId] = join(self._getPredictConfDir(), '%s_%s.json' % (PREDICT_CONFIG, tsId))
+        with open(self._configPath[tsId], 'w+') as f:
             json.dump(config, f, indent=2)
 
-    def predictStep(self, numTomo):
+    def predictStep(self, tsId):
         # Run cryoCARE
-        Plugin.runCryocare(self, PYTHON, '$(which cryoCARE_predict.py) --conf %s' % self._configPath[numTomo],
+        Plugin.runCryocare(self, PYTHON, '$(which cryoCARE_predict.py) --conf %s' % self._configPath[tsId],
                            gpuId=getattr(self, params.GPU_LIST).get())
+        # Remove even/odd words from the output name to avoid confusion
+        origName = self._getOutputFile(tsId)
+        finalNameRe = re.compile(re.escape(EVEN), re.IGNORECASE)  # Used to do a case-insensitive replacement
+        shutil.move(origName, finalNameRe.sub('', origName))
 
-    def createOutputStep(self):
-        outputSetOfTomo = self._createSetOfTomograms(suffix='_denoised')
-        outputSetOfTomo.copyInfo(self.even.get())
+    def createOutputStep(self, tsId):
+        outputSetOfTomo = getattr(self, outputObjects.tomograms.name, None)
+        if not outputSetOfTomo:
+            outputSetOfTomo = SetOfTomograms.create(self._getPath(), template='tomograms%s.sqlite', suffix=DENOISED_SUFFIX)
+            outputSetOfTomo.copyInfo(self.even.get())
 
-        for i, inTomo in enumerate(self.even.get()):
-            tomo = Tomogram()
-            tomo.setLocation(self._outputFiles[i])
-            tomo.setSamplingRate(inTomo.getSamplingRate())
-            outputSetOfTomo.append(tomo)
+        tomo = self._genOutputTomogram(tsId)
+        outputSetOfTomo.append(tomo)
 
-        self._defineOutputs(outputTomograms=outputSetOfTomo)
+        self._defineOutputs(**{outputObjects.tomograms.name: outputSetOfTomo})
+        self._defineSourceRelation(self.even.get(), outputSetOfTomo)
+        self._defineSourceRelation(self.odd.get(), outputSetOfTomo)
+        self._defineSourceRelation(self.model.get(), outputSetOfTomo)
 
     # --------------------------- INFO functions -----------------------------------
     def _summary(self):
@@ -118,22 +161,40 @@ tomograms followed by per-pixel averaging."""
         summary = []
 
         if self.isFinished():
-            summary.append(
-                "Tomogram denoising finished.")
+            summary.append("Tomogram denoising finished.")
         return summary
 
     def _validate(self):
         validateMsgs = []
-
-        msg = ccutils.checkInputTomoSetsSize(self.even.get(), self.odd.get())
+        # Check the sampling rate
+        sRateEven = self.even.get().getSamplingRate()
+        sRateOdd = self.odd.get().getSamplingRate()
+        if sRateEven != sRateOdd:
+            validateMsgs.append('The sampling rate of the introduced sets of tomograms is different:\n'
+                                'Even SR %.2f != Odd SR %.2f\n\n' % (sRateEven, sRateOdd))
+        # Check the size
+        msg = checkInputTomoSetsSize(self.even.get(), self.odd.get())
         if msg:
-            validateMsgs.append()
+            validateMsgs.append(msg)
         return validateMsgs
 
     # --------------------------- UTIL functions -----------------------------------
-    def _getOutputName(self, inTomoName):
-        outputName = removeBaseExt(inTomoName) + '_denoised.mrc'
-        return abspath(self._getExtraPath(outputName.replace('_Even', '').replace('_Odd', '')))
-
     def _getPredictConfDir(self):
         return self._getExtraPath(PREDICT_CONFIG)
+
+    def _getOutputPath(self, tsId):
+        """cryoCARE will generate a new folder for each tomogram denoised. Apart from that, if the
+        tomograms were imported, the 'Even_' word can be included in the tsId, as in that case it will be
+        the filename. To avoid confusion, it's removed from the generated folder name."""
+        outPath = self._getExtraPath(tsId + '_' + DENOISED_SUFFIX)
+        outPathRe = re.compile(re.escape(EVEN), re.IGNORECASE)  # Used to carry out a case-insensitive replacement
+        return outPathRe.sub('', outPath)
+
+    def _getOutputFile(self, tsId):
+        return glob.glob(join(self._getOutputPath(tsId), '*.mrc'))[0] # Only one file is contained in each dir
+
+    def _genOutputTomogram(self, tsId):
+        tomo = Tomogram()
+        tomo.setLocation(self._getOutputFile(tsId))
+        tomo.setSamplingRate(self.sRate)
+        return tomo

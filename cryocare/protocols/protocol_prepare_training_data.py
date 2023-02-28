@@ -1,8 +1,10 @@
 import glob
 import json
+from enum import Enum
 from os.path import join
 import numpy as np
 
+from cryocare.utils import checkInputTomoSetsSize
 from pwem.protocols import EMProtocol
 from pyworkflow import BETA
 from pyworkflow.protocol import params, IntParam, FloatParam, Positive, LT, GT, LEVEL_ADVANCED, EnumParam
@@ -12,7 +14,6 @@ from scipion.constants import PYTHON
 from cryocare import Plugin
 from cryocare.constants import TRAIN_DATA_DIR, TRAIN_DATA_FN, TRAIN_DATA_CONFIG, VALIDATION_DATA_FN
 from cryocare.objects import CryocareTrainData
-from cryocare.utils import CryocareUtils as ccutils
 
 # Tilt axis values
 X_AXIS = 0
@@ -23,12 +24,17 @@ Y_AXIS_LABEL = 'Y'
 Z_AXIS_LABEL = 'Z'
 
 
+class outputObjects(Enum):
+    train_data = CryocareTrainData
+
+
 class ProtCryoCAREPrepareTrainingData(EMProtocol):
     """Operate the data to make it be expressed as expected by cryoCARE net."""
 
     _label = 'CryoCARE Training Data Extraction'
     _devStatus = BETA
     _configFile = None
+    _possibleOutputs = outputObjects
 
     # -------------------------- DEFINE param functions ----------------------
 
@@ -101,7 +107,6 @@ class ProtCryoCAREPrepareTrainingData(EMProtocol):
         self._insertFunctionStep(self.createOutputStep)
 
     def _initialize(self):
-        makePath(self._getTrainDataDir())
         makePath(self._getTrainDataConfDir())
         self._configFile = join(self._getTrainDataConfDir(), TRAIN_DATA_CONFIG)
 
@@ -126,7 +131,9 @@ class ProtCryoCAREPrepareTrainingData(EMProtocol):
         # Generate a train data object containing the resulting data
         train_data = CryocareTrainData(train_data_dir=self._getTrainDataDir(),
                                        patch_size=self.patch_shape.get())
-        self._defineOutputs(train_data=train_data)
+        self._defineOutputs(**{outputObjects.train_data.name: train_data})
+        self._defineSourceRelation(self.evenTomos.get(), train_data)
+        self._defineSourceRelation(self.oddTomos.get(), train_data)
 
     # --------------------------- INFO functions -----------------------------------
     def _summary(self):
@@ -144,14 +151,25 @@ class ProtCryoCAREPrepareTrainingData(EMProtocol):
 
     def _validate(self):
         validateMsgs = []
-
-        msg = ccutils.checkInputTomoSetsSize(self.evenTomos.get(), self.oddTomos.get())
+        sideLength = self.patch_shape.get()
+        evenTomos = self.evenTomos.get()
+        oddTomos = self.oddTomos.get()
+        xe, ye, ze = evenTomos.getDimensions()
+        xo, yo, zo = oddTomos.getDimensions()
+        # Check the length and the dimensions of the sets introduced
+        msg = checkInputTomoSetsSize(evenTomos, oddTomos)
         if msg:
-            validateMsgs.append()
-
-        if self.patch_shape.get() % 2 != 0:
+            validateMsgs.append(msg)
+        # Check the patch conditions
+        if sideLength % 2 != 0:
             validateMsgs.append('Patch shape has to be an even number.')
-
+        for idim in [xe, ye, ze, xo, yo, zo]:
+            if idim <= 2 * sideLength:
+                validateMsgs.append('X, Y and Z dimensions of the tomograms introduced must satisfy the '
+                                    'condition\n\n*dimension > 2 x SideLength*\n\n'
+                                    '(X, Y, Z) = (%i, %i, %i)\n'
+                                    'SideLength = %i\n\n' % (xe, ye, ze, sideLength))
+                break
         return validateMsgs
 
     # --------------------------- UTIL functions -----------------------------------

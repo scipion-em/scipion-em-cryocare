@@ -26,8 +26,8 @@
 # **************************************************************************
 
 CRYOCARE_HOME = 'CRYOCARE_HOME'
-V0_1_1 = '0.1.1'
-CRYOCARE_DEFAULT_VERSION = V0_1_1
+V0_2_1 = '0.2.1'
+CRYOCARE_DEFAULT_VERSION = V0_2_1
 CRYOCARE = 'cryoCARE'
 CRYOCARE_ENV_NAME = '%s-%s' % (CRYOCARE, CRYOCARE_DEFAULT_VERSION)
 CRYOCARE_ENV_ACTIVATION = 'CRYOCARE_ENV_ACTIVATION'
@@ -40,4 +40,5 @@ VALIDATION_DATA_FN = 'val_data.npz'
 MEAN_STD_FN = 'mean_std.npz'
 TRAIN_DATA_CONFIG = 'training_data_config'
 CRYOCARE_MODEL = 'cryoCARE_model'
+CRYOCARE_MODEL_TGZ = CRYOCARE_MODEL + '.tar.gz'
 PREDICT_CONFIG = 'predict_config'

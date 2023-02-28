@@ -1,8 +1,8 @@
 # **************************************************************************
 # *
-# * Authors:     you (you@yourinstitution.email)
+# * Authors:     Scipion Team
 # *
-# * your institution
+# * Unidad de  Bioinformatica of Centro Nacional de Biotecnologia , CSIC
 # *
 # * This program is free software; you can redistribute it and/or modify
 # * it under the terms of the GNU General Public License as published by
@@ -23,11 +23,24 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
-from os.path import join, exists
-
+from os.path import join
 from pyworkflow.utils import createLink
+from cryocare.constants import TRAIN_DATA_FN, VALIDATION_DATA_FN, CRYOCARE_MODEL_TGZ
 
-from cryocare.constants import TRAIN_DATA_FN, VALIDATION_DATA_FN
+
+def checkInputTomoSetsSize(evenTomoSet, oddTomoSet):
+    message = ''
+    xe, ye, ze = evenTomoSet.getDimensions()
+    xo, yo, zo = oddTomoSet.getDimensions()
+    ne = evenTomoSet.getSize()
+    no = oddTomoSet.getSize()
+    if (xe, ye, ze, ne) != (xo, yo, zo, no):
+        message = ('Size of even and odd set of tomograms must be the same:\n'
+                   'Even --> (x, y, z, n) = ({xe}, {ye}, {ze}, {ne})\n'
+                   'Odd  --> (x, y, z, n) = ({xo}, {yo}, {zo}, {no})'.format(
+                    xe=xe, ye=ye, ze=ze, ne=ne, xo=xo, yo=yo, zo=zo, no=no))
+
+    return message
 
 
 def makeDatasetSymLinks(prot, trainDataDir):
@@ -36,23 +49,13 @@ def makeDatasetSymLinks(prot, trainDataDir):
     # be created for each one
     linkedTrainingDataFile = prot._getExtraPath(TRAIN_DATA_FN)
     linkedValidationDataFile = prot._getExtraPath(VALIDATION_DATA_FN)
-    if not exists(linkedTrainingDataFile):
-        createLink(join(trainDataDir, TRAIN_DATA_FN), linkedTrainingDataFile)
-    if not exists(linkedValidationDataFile):
-        createLink(join(trainDataDir, VALIDATION_DATA_FN), linkedValidationDataFile)
+    createLink(join(trainDataDir, TRAIN_DATA_FN), linkedTrainingDataFile)
+    createLink(join(trainDataDir, VALIDATION_DATA_FN), linkedValidationDataFile)
 
-class CryocareUtils:
-    @staticmethod
-    def checkInputTomoSetsSize(evenTomoSet, oddTomoSet):
-        message = ''
-        xe, ye, ze = evenTomoSet.getDimensions()
-        xo, yo, zo = oddTomoSet.getDimensions()
-        ne = evenTomoSet.getSize()
-        no = oddTomoSet.getSize()
-        if (xe, ye, ze, ne) != (xo, yo, zo, no):
-            message = ('Size of even and odd set of tomograms must be the same:\n'
-                       'Even --> (x, y, z, n) = ({xe}, {ye}, {ze}, {ne})\n'
-                       'Odd  --> (x, y, z, n) = ({xo}, {yo}, {zo}, {no})'.format(
-                        xe=xe, ye=ye, ze=ze, ne=ne, xo=xo, yo=yo, zo=zo, no=no))
 
-        return message
+def getModelName(prot):
+    return prot._getExtraPath(CRYOCARE_MODEL_TGZ)
+
+
+
+

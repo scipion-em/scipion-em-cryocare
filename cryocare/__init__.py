@@ -32,11 +32,10 @@ from cryocare.constants import CRYOCARE_ENV_ACTIVATION, DEFAULT_ACTIVATION_CMD, 
 
 _logo = "icon.png"
 _references = ['buchholz2019cryo', 'buchholz2019content']
-__version__ = "3.0.1"
+__version__ = "3.1.0"
 
 
 class Plugin(pwem.Plugin):
-
     _homeVar = CRYOCARE_HOME
     _url = 'https://github.com/scipion-em/scipion-em-cryocare'
 
@@ -72,21 +71,15 @@ class Plugin(pwem.Plugin):
 
         # Create the environment
         installationCmd += 'conda create -y -n %s -c conda-forge -c anaconda python=3.8 ' \
-                           'cudnn=7.6.5=cuda10.1_0 && ' % CRYOCARE_ENV_NAME
+                           'cudatoolkit=11.0 cudnn=8.0 && ' % CRYOCARE_ENV_NAME
+        # 'keras-gpu=2.3.1 ' \
 
         # Activate new the environment
         installationCmd += 'conda activate %s && ' % CRYOCARE_ENV_NAME
 
-        # Install non-conda required packages
-        installationCmd += 'pip install tensorflow-gpu==2.3.3 && '
-        installationCmd += 'pip install mrcfile && '
-        installationCmd += 'pip install csbdeep '
-        # I had the same issue and was able to fix this by setting h5py < 3.0.0.
-        # Looks like here was a 3.0 release of h5py recently where they changed how strings are stored/read.
-        # https://github.com/keras-team/keras/issues/14265
-
-        # Install cryoCARE
-        installationCmd += 'pip install %s==%s &&' % (CRYOCARE, CRYOCARE_DEFAULT_VERSION)
+        # Install cryoCARE and the rest of dependencies
+        installationCmd += 'pip install tensorflow-gpu==2.4.0 && '
+        installationCmd += 'pip install %s==%s && ' % (CRYOCARE, CRYOCARE_DEFAULT_VERSION)
 
         # Flag installation finished
         installationCmd += 'touch %s' % CRYOCARE_INSTALLED
