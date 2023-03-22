@@ -31,7 +31,7 @@ from cryocare.constants import CRYOCARE_ENV_ACTIVATION, DEFAULT_ACTIVATION_CMD, 
     CRYOCARE_DEFAULT_VERSION, CRYOCARE_HOME, CRYOCARE_CUDA_LIB, CRYOCARE
 
 _logo = "icon.png"
-_references = ['buchholz2019cryo', 'buchholz2019content']
+_references = ['buchholz2019cryo']
 __version__ = "3.1.0"
 
 

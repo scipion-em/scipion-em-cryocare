@@ -31,7 +31,7 @@ class outputObjects(Enum):
 class ProtCryoCAREPrepareTrainingData(EMProtocol):
     """Operate the data to make it be expressed as expected by cryoCARE net."""
 
-    _label = 'CryoCARE Training Data Extraction'
+    _label = 'CryoCARE Generate Training Data'
     _devStatus = BETA
     _configFile = None
     _possibleOutputs = outputObjects

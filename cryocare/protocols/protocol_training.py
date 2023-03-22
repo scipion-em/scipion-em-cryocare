@@ -18,7 +18,7 @@ class outputObjects(Enum):
 
 
 class ProtCryoCARETraining(EMProtocol):
-    """Use two data-independent reconstructed tomograms to train a 3D cryo-CARE network."""
+    """Use two data-independent reconstructed tomograms to train a 3D cryoCARE network."""
 
     _label = 'CryoCARE Training'
     _devStatus = BETA

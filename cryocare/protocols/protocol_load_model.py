@@ -16,9 +16,9 @@ class outputObjects(Enum):
 
 
 class ProtCryoCARELoadModel(EMProtocol):
-    """Use two data-independent reconstructed tomograms to train a 3D cryo-CARE network."""
+    """Load a previously trained model."""
 
-    _label = 'CryoCARE Load Model'
+    _label = 'CryoCARE Load Trained Model'
     _devStatus = BETA
     _possibleOutputs = outputObjects
 
