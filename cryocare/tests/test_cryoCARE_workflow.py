@@ -53,7 +53,7 @@ class TestCryoCARE(BaseTest):
                                       samplingRate=self.sRate)
         protImport.setObjLabel('Import %s tomograms' % mode)
         self.launchProtocol(protImport)
-        output = getattr(protImport, 'outputTomograms', None)
+        output = getattr(protImport, 'Tomograms', None)
         self.assertSetSize(output, size=1)
         return protImport
 
@@ -61,8 +61,8 @@ class TestCryoCARE(BaseTest):
         print(magentaStr("\n==> Preparing the training data:"))
         patchSize = 40
         protPrepTrainingData = self.newProtocol(ProtCryoCAREPrepareTrainingData,
-                                                evenTomos=protImportEven.outputTomograms,
-                                                oddTomos=protImportOdd.outputTomograms,
+                                                evenTomos=protImportEven.Tomograms,
+                                                oddTomos=protImportOdd.Tomograms,
                                                 patch_shape=patchSize,
                                                 num_slices=400,
                                                 n_normalization_samples=60)
@@ -125,8 +125,8 @@ class TestCryoCARE(BaseTest):
 
         # Predict
         protPredict = self.newProtocol(ProtCryoCAREPrediction,
-                                       even=protImportEven.outputTomograms,
-                                       odd=protImportOdd.outputTomograms,
+                                       even=protImportEven.Tomograms,
+                                       odd=protImportOdd.Tomograms,
                                        model=getattr(trainedModelProt, trainOutputs.model.name, None))
 
         self.launchProtocol(protPredict)
