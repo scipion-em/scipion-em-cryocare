@@ -68,7 +68,6 @@ class Plugin(pwem.Plugin):
         CRYOCARE_INSTALLED = '%s_%s_installed' % (CRYOCARE, CRYOCARE_DEFAULT_VERSION)
         cudaVersion = cls.guessCudaVersion(CRYOCARE_CUDA_LIB)
         installationCmd = cls.getCondaActivationCmd()
-        print("Installing cryoCARE for cuda %s ..." %cudaVersion)
         if cudaVersion.major == 11:
             # try to get CONDA activation command
             # Create the environment
