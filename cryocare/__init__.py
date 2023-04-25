@@ -66,25 +66,19 @@ class Plugin(pwem.Plugin):
     @classmethod
     def defineBinaries(cls, env):
         CRYOCARE_INSTALLED = '%s_%s_installed' % (CRYOCARE, CRYOCARE_DEFAULT_VERSION)
-        cudaVersion = cls.guessCudaVersion(CRYOCARE_CUDA_LIB)
         installationCmd = cls.getCondaActivationCmd()
-        if cudaVersion.major == 11:
-            # try to get CONDA activation command
-            # Create the environment
-            installationCmd += 'conda create -y -n %s python=3.8 cudatoolkit=11.0 cudnn=8.0 -c conda-forge && ' % CRYOCARE_ENV_NAME
-            # 'keras-gpu=2.3.1 ' \
+        # try to get CONDA activation command
+        # Create the environment
+        installationCmd += 'conda create -y -n %s python=3.8 cudatoolkit=11.0 cudnn=8.0 -c conda-forge && ' % CRYOCARE_ENV_NAME
+        # 'keras-gpu=2.3.1 ' \
 
-            # Activate new the environment
-            installationCmd += 'conda activate %s && ' % CRYOCARE_ENV_NAME
+        # Activate new the environment
+        installationCmd += 'conda activate %s && ' % CRYOCARE_ENV_NAME
 
-            # Install the rest of dependencies
+        # Install the rest of dependencies
 
-            installationCmd += 'pip install tensorflow==2.4.0 && '
-            installationCmd += 'pip install matplotlib==3.6.3 && '
-        else: # cuda 10
-            installationCmd += 'conda create -n %s -c conda-forge -c anaconda python=3 keras-gpu=2.3.1 && ' % CRYOCARE_ENV_NAME
-            # Activate new the environment
-            installationCmd += 'conda activate %s && ' % CRYOCARE_ENV_NAME
+        installationCmd += 'pip install tensorflow==2.4.0 && '
+        installationCmd += 'pip install matplotlib==3.6.3 && '
 
         # Install cryoCARE
         installationCmd += 'pip install %s==%s && ' % (CRYOCARE, CRYOCARE_DEFAULT_VERSION)
