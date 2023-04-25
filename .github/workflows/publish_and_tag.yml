@@ -11,7 +11,7 @@ on:
     branches: [ master ]
 
 env:
-  FOLDER_WITH_VERSION: isonet
+  FOLDER_WITH_VERSION: cryocare
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   deploy:
@@ -41,7 +41,7 @@ jobs:
         twine upload dist/* -c "${{ secrets.PYPI_COMMENT }}"
     - name: Get version and tag
       env:
-        FOLDER_WITH_VERSION: isonet
+        FOLDER_WITH_VERSION: cryocare
       run: |
         export PACKAGE_VERSION=$(python -c "import $FOLDER_WITH_VERSION; print('VERSION', 'v'+$FOLDER_WITH_VERSION.__version__)" | grep VERSION | sed "s/VERSION //g")
         git tag $PACKAGE_VERSION
