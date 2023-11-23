@@ -1,16 +1,29 @@
+import glob
 import json
 import operator
 from enum import Enum
+from os.path import join
+import numpy as np
 
-from cryocare.utils import makeDatasetSymLinks, getModelName
+from cryocare.utils import checkInputTomoSetsSize, getModelName
 from pwem.protocols import EMProtocol
 from pyworkflow import BETA
-from pyworkflow.protocol import IntParam, PointerParam, FloatParam, params, GT, LEVEL_ADVANCED, GE, Positive
-from pyworkflow.utils import Message
+from pyworkflow.protocol import params, IntParam, FloatParam, Positive, LT, GT, GE, LEVEL_ADVANCED, EnumParam
+from pyworkflow.utils import Message, makePath, moveFile
 from scipion.constants import PYTHON
+
 from cryocare import Plugin
-from cryocare.constants import CRYOCARE_MODEL
-from cryocare.objects import CryocareModel
+from cryocare.constants import TRAIN_DATA_DIR, TRAIN_DATA_FN, TRAIN_DATA_CONFIG, VALIDATION_DATA_FN, CRYOCARE_MODEL
+from cryocare.objects import CryocareTrainData, CryocareModel
+
+
+# Tilt axis values
+X_AXIS = 0
+Y_AXIS = 1
+Z_AXIS = 2
+X_AXIS_LABEL = 'X'
+Y_AXIS_LABEL = 'Y'
+Z_AXIS_LABEL = 'Z'
 
 
 class outputObjects(Enum):
@@ -18,14 +31,15 @@ class outputObjects(Enum):
 
 
 class ProtCryoCARETraining(EMProtocol):
-    """Use two data-independent reconstructed tomograms to train a 3D cryoCARE network."""
+    """Operate the data to make it be expressed as expected by cryoCARE net."""
 
     _label = 'CryoCARE Training'
     _devStatus = BETA
+    _configFile = None
     _possibleOutputs = outputObjects
-    _configPath = None
 
     # -------------------------- DEFINE param functions ----------------------
+
     def _defineParams(self, form):
         """ Define the input parameters that will be used.
         Params:
@@ -33,12 +47,72 @@ class ProtCryoCARETraining(EMProtocol):
         """
         # You need a params to belong to a section:
         form.addSection(label=Message.LABEL_INPUT)
-        form.addParam('train_data', PointerParam,
-                      pointerClass='CryocareTrainData',
-                      label='Training data',
-                      important=True,
+        form.addParam('useIndependentOddEven', params.BooleanParam,
+                      default=True,
+                      label="Are odd-even associated to the Tomograms?",
+                      help=" .")
+        form.addParam('evenTomos', params.PointerParam,
+                      pointerClass='SetOfTomograms',
+                      condition='useIndependentOddEven',
+                      label='Even tomograms',
                       allowsNull=False,
-                      help='Training data extracted from even and odd tomograms.')
+                      help='Set of tomograms reconstructed from the even frames of the tilt'
+                           'series movies.')
+        form.addParam('oddTomos', params.PointerParam,
+                      pointerClass='SetOfTomograms',
+                      condition='useIndependentOddEven',
+                      label='Odd tomograms',
+                      allowsNull=False,
+                      help='Set of tomogram reconstructed from the odd frames of the tilt'
+                           'series movies.')
+        form.addParam('tomo', params.PointerParam,
+                      pointerClass='SetOfTomograms',
+                      condition='not useIndependentOddEven',
+                      label='Tomograms',
+                      important=True,
+                      help='Set of tomograms reconstructed from the even frames of the tilt'
+                           'series movies.')
+
+        form.addSection(label='Config Parameters')
+        form.addParam('tilt_axis', EnumParam,
+                      label='Tilt axis of the tomograms',
+                      expertLevel=params.LEVEL_ADVANCED,
+                      choices=[X_AXIS_LABEL, Y_AXIS_LABEL, Z_AXIS_LABEL],
+                      default=Y_AXIS,
+                      allowsNull=False,
+                      display=EnumParam.DISPLAY_HLIST,
+                      help='Tomograms are split along this axis to extract train and validation data separately.')
+
+        form.addParam('patch_shape', IntParam,
+                      label='Side length of the training volumes',
+                      default=72,
+                      help='Corresponding sub-volumes pairs of the provided 3D shape '
+                           'are extracted from the even and odd tomograms. The higher it is,'
+                           'the higher net depth is required for training and the longer it '
+                           'takes. Its value also depends on the resolution of the input tomograms, '
+                           'being a higher patch size required for higher resolution.')
+
+        form.addParam('num_slices', IntParam,
+                      label='Number of training pairs to extract',
+                      default=1200,
+                      validators=[Positive],
+                      help='Number of sub-volumes to sample from the even and odd tomograms.')
+
+        form.addParam('n_normalization_samples', IntParam,
+                      label='No. of subvolumes extracted per tomogram',
+                      default=120,
+                      expertLevel=LEVEL_ADVANCED,
+                      validators=[Positive],
+                      help='Number of training pairs which will be used to compute mean and standard deviation '
+                           'for normalization. By default it is the 10% of the number of training pairs.')
+
+        form.addParam('split', FloatParam,
+                      label='Train-Validation Split',
+                      default=0.9,
+                      validators=[GT(0), LT(1)],
+                      expertLevel=LEVEL_ADVANCED,
+                      help='Training and validation data split value.')
+
         form.addSection(label='Training Parameters')
         form.addParam('epochs', IntParam,
                       default=100,
@@ -98,21 +172,29 @@ class ProtCryoCARETraining(EMProtocol):
                        label="Choose GPU IDs",
                        help="GPU ID, normally it is 0.")
 
+    # --------------------------- STEPS functions ------------------------------
     def _insertAllSteps(self):
         self._initialize()
+        self._insertFunctionStep(self.prepareTrainingDataStep)
+        self._insertFunctionStep(self.runDataExtraction)
         self._insertFunctionStep(self.prepareTrainingStep)
         self._insertFunctionStep(self.trainingStep)
         self._insertFunctionStep(self.createOutputStep)
 
     def _initialize(self):
+        makePath(self._getTrainDataConfDir())
+        self._configFile = join(self._getTrainDataConfDir(), TRAIN_DATA_CONFIG)
+    '''
+    def _initializeTraining(self):
         # The prediction is expecting the training and validation datasets to be in the same place as the training
         # model, but they are located in the training data generation extra directory. Hence, a symbolic link will
         # be created for each one
-        makeDatasetSymLinks(self, self._getPreparedTrainingDataDir())
+        makeDatasetSymLinks(self, self._getTrainDataDir())
+    '''
 
     def prepareTrainingStep(self):
         config = {
-            'train_data': self.train_data.get().getTrainDataDir(),
+            'train_data': self._getTrainDataDir(),
             'epochs': self.epochs.get(),
             'steps_per_epoch': self.steps_per_epoch.get(),
             'batch_size': self.batch_size.get(),
@@ -131,41 +213,156 @@ class ProtCryoCARETraining(EMProtocol):
     def trainingStep(self):
         Plugin.runCryocare(self, PYTHON, '$(which cryoCARE_train.py) --conf {}'.format(self._configPath),
                            gpuId=getattr(self, params.GPU_LIST).get())
+    def getOddEvenLists(self):
+        oddList = []
+        evenList = []
+        for t in self.tomo.get():
+            odd, even = t.getHalfMaps().split(',')
+            oddList.append(odd)
+            evenList.append(even)
+        return oddList, evenList
+
+    def prepareTrainingDataStep(self):
+
+        if self.useIndependentOddEven.get():
+            self._getListOfTomoNames(self.evenTomos.get() )
+            fnOdd = self._getListOfTomoNames(self.oddTomos.get())
+            fnEven = self._getListOfTomoNames(self.evenTomos.get())
+        else:
+            fnOdd, fnEven = self.getOddEvenLists()
+
+        config = {
+            'even': fnEven,
+            'odd': fnOdd,
+            'patch_shape': 3 * [self.patch_shape.get()],
+            'num_slices': self.num_slices.get(),
+            'split': self.split.get(),
+            'tilt_axis': self._decodeTiltAxisValue(self.tilt_axis.get()),
+            'n_normalization_samples': self.n_normalization_samples.get(),
+            'path': self._getExtraPath('train_data')
+        }
+        with open(self._configFile, 'w+') as f:
+            json.dump(config, f, indent=2)
+
+    def runDataExtraction(self):
+        Plugin.runCryocare(self, PYTHON, '$(which cryoCARE_extract_train_data.py) --conf %s' % self._configFile)
 
     def createOutputStep(self):
         model = CryocareModel(model_file=getModelName(self),
-                              train_data_dir=self._getPreparedTrainingDataDir())
+                              train_data_dir=self._getTrainDataDir())
         self._defineOutputs(**{outputObjects.model.name: model})
-        self._defineSourceRelation(self.train_data.get(), model)
+
+        if self.useIndependentOddEven.get():
+            self._defineSourceRelation(self.oddTomos.get(), model)
+            self._defineSourceRelation(self.evenTomos.get(), model)
+        else:
+            self._defineSourceRelation(self.tomo.get(), model)
+
+    def _getUNetDepth(self):
+        # Estimate the best net depth value according to the patch size if the user left this field empty
+        if self.unet_n_depth.get() == 0:
+            refValues = [72, 96, 128]  # Corresponds to a net depth of 2, 3 and 4, respectively
+            netDepth = [2, 3, 4]
+            diff = [abs(i - self.patch_shape.get()) for i in refValues]
+            ind, _ = min(enumerate(diff), key=operator.itemgetter(0))
+            return netDepth[ind]
+        else:
+            return self.unet_n_depth.get()
 
     # --------------------------- INFO functions -----------------------------------
     def _summary(self):
         summary = []
 
         if self.isFinished():
-            summary.append("Generated training model in location: *%s*" % self._getExtraPath(CRYOCARE_MODEL))
+            summary.append("Generated training data info:\n"
+                           "train_data_file = *{}*\n"
+                           "validation_data_file = *{}*\n"
+                           "patch_size = *{}*".format(
+                            self._getTrainDataFile(),
+                            self._getValidationDataFile(),
+                            self.patch_shape.get()))
         return summary
 
     def _validate(self):
         validateMsgs = []
+        sideLength = self.patch_shape.get()
 
-        if self.unet_kern_size.get() % 2 != 1:
-            validateMsgs.append('Convolution kernel size has to be an odd number.')
+        if self.useIndependentOddEven.get():
+            evenTomos = self.evenTomos.get()
+            oddTomos = self.oddTomos.get()
+            xe, ye, ze = evenTomos.getDimensions()
+            xo, yo, zo = oddTomos.getDimensions()
+            for idim in [xe, ye, ze, xo, yo, zo]:
+                if idim <= 2 * sideLength:
+                    validateMsgs.append('X, Y and Z dimensions of the tomograms introduced must satisfy the '
+                                        'condition\n\n*dimension > 2 x SideLength*\n\n'
+                                        '(X, Y, Z) = (%i, %i, %i)\n'
+                                        'SideLength = %i\n\n' % (xe, ye, ze, sideLength))
+                    msg = checkInputTomoSetsSize(evenTomos, oddTomos)
+                    if msg:
+                        validateMsgs.append(msg)
+                    break
+        else:
+            inputTomo = self.tomo.get()
+            xt, yt, zt = inputTomo.getDimensions()
+            for idim in [xt, yt, zt]:
+                if idim <= 2 * sideLength:
+                    validateMsgs.append('X, Y and Z dimensions of the tomograms introduced must satisfy the '
+                                        'condition\n\n*dimension > 2 x SideLength*\n\n'
+                                        '(X, Y, Z) = (%i, %i, %i)\n'
+                                        'SideLength = %i\n\n' % (xt, yt, zt, sideLength))
+                    break
+
+        # Check the patch conditions
+        if sideLength % 2 != 0:
+            validateMsgs.append('Patch shape has to be an even number.')
 
         return validateMsgs
 
-# --------------------------- UTIL functions -----------------------------------
-    def _getUNetDepth(self):
-        # Estimate the best net depth value according to the patch size if the user left this field empty
-        if self.unet_n_depth.get() == 0:
-            refValues = [72, 96, 128]  # Corresponds to a net depth of 2, 3 and 4, respectively
-            netDepth = [2, 3, 4]
-            diff = [abs(i - self.train_data.get().getPatchSize()) for i in refValues]
-            ind, _ = min(enumerate(diff), key=operator.itemgetter(0))
-            return netDepth[ind]
+    # --------------------------- UTIL functions -----------------------------------
+    @staticmethod
+    def _combineTrainDataFiles(pattern, outputFile):
+        files = glob.glob(pattern)
+        if len(files) == 1:
+            moveFile(files[0], outputFile)
         else:
-            return self.unet_n_depth.get()
+            # Create a dictionary with the data fields contained in each npz file
+            dataDict = {}
+            with np.load(files[0]) as data:
+                for field in data.files:
+                    dataDict[field] = []
 
-    def _getPreparedTrainingDataDir(self):
-        return self.train_data.get().getTrainDataDir()
+            # Read and combine the data from all files
+            for i, name in enumerate(files):
+                with np.load(name) as data:
+                    for field in data.files:
+                        dataDict[field].append(data[field])
+
+            # Save the combined data into a npz file
+            np.savez(outputFile, **dataDict)
+
+    def _getTrainDataDir(self):
+        return self._getExtraPath(TRAIN_DATA_DIR)
+
+    def _getTrainDataFile(self):
+        return join(self._getTrainDataDir(), TRAIN_DATA_FN)
+
+    def _getValidationDataFile(self):
+        return join(self._getTrainDataDir(), VALIDATION_DATA_FN)
+
+    def _getTrainDataConfDir(self):
+        return self._getExtraPath(TRAIN_DATA_CONFIG)
+
+    @staticmethod
+    def _decodeTiltAxisValue(value):
+        if value == X_AXIS:
+            return X_AXIS_LABEL
+        elif value == Y_AXIS:
+            return Y_AXIS_LABEL
+        else:
+            return Z_AXIS_LABEL
+
+    @staticmethod
+    def _getListOfTomoNames(tomoSet):
+        return [tomo.getFileName() for tomo in tomoSet]
 

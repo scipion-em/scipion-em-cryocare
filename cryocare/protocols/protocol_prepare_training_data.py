@@ -36,6 +36,11 @@ class ProtCryoCAREPrepareTrainingData(EMProtocol):
     _configFile = None
     _possibleOutputs = outputObjects
 
+    @classmethod
+    def isDisabled(cls):
+        """ This protocol is deprecated on November 23th, 2023."""
+        return True
+
     # -------------------------- DEFINE param functions ----------------------
 
     def _defineParams(self, form):

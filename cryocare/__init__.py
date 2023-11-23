@@ -69,7 +69,7 @@ class Plugin(pwem.Plugin):
         installationCmd = cls.getCondaActivationCmd()
         # try to get CONDA activation command
         # Create the environment
-        installationCmd += 'conda create -y -n %s python=3.8 cudatoolkit=11.0 cudnn=8.0 -c conda-forge && ' % CRYOCARE_ENV_NAME
+        installationCmd += 'conda create -y -n %s python=3.8 cudatoolkit=11.2 cudnn=8.1 -c conda-forge && ' % CRYOCARE_ENV_NAME
         # 'keras-gpu=2.3.1 ' \
 
         # Activate new the environment
@@ -77,7 +77,7 @@ class Plugin(pwem.Plugin):
 
         # Install the rest of dependencies
 
-        installationCmd += 'pip install tensorflow==2.4.0 && '
+        installationCmd += 'pip install tensorflow==2.5.0 && '
         installationCmd += 'pip install matplotlib==3.6.3 && '
 
         # Install cryoCARE
