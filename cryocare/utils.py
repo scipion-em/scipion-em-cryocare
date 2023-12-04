@@ -42,7 +42,6 @@ def checkInputTomoSetsSize(evenTomoSet, oddTomoSet):
 
     return message
 
-
 def makeDatasetSymLinks(prot, trainDataDir):
     # The prediction is expecting the training and validation datasets to be in the same place as the training
     # model, but they are located in the training data generation extra directory. Hence, a symbolic link will

@@ -1,3 +1,6 @@
+3.2:
+    - Use of odd even simplified and associated to the tomograms
+    - generate data training removed
 3.1.1:
     - Source code version 0.2.2.
     - Updating the installation command: Taking into account cuda 10 and 11 installation

@@ -69,20 +69,32 @@ tomograms followed by per-pixel averaging."""
         """
         # You need a params to belong to a section:
         form.addSection(label=Message.LABEL_INPUT)
+        form.addParam('useIndependentOddEven', params.BooleanParam,
+                      default=True,
+                      label="Are odd-even associated to the Tomograms?",
+                      help=" .")
         form.addParam('even', params.PointerParam,
                       pointerClass='SetOfTomograms',
+                      condition='useIndependentOddEven',
                       label='Even tomograms',
                       important=True,
                       allowsNull=False,
-                      help='Set of tomogram reconstructed from the even frames of the tilt'
+                      help='Set of tomograms reconstructed from the even frames of the tilt'
                            'series movies.')
-
         form.addParam('odd', params.PointerParam,
                       pointerClass='SetOfTomograms',
+                      condition='useIndependentOddEven',
                       label='Odd tomograms',
                       important=True,
                       allowsNull=False,
-                      help='Set of tomograms reconstructed from the odd frames of the tilt'
+                      help='Set of tomogram reconstructed from the odd frames of the tilt'
+                           'series movies.')
+        form.addParam('tomo', params.PointerParam,
+                      pointerClass='SetOfTomograms',
+                      condition='not useIndependentOddEven',
+                      label='Tomograms',
+                      important=True,
+                      help='Set of tomograms reconstructed from the even frames of the tilt'
                            'series movies.')
 
         form.addParam('model', params.PointerParam,
@@ -97,7 +109,7 @@ tomograms followed by per-pixel averaging."""
                       default='1 1 1',
                       important=True,
                       allowsNull=False,
-                      help='Normally the gpu cannot handle the whole size of the tomogrmas, so it can be split into '
+                      help='Normally the gpu cannot handle the whole size of the tomograms, so it can be split into '
                            'n tiles per axis to process smaller volumes instead of one big at once.')
 
         form.addHidden(params.GPU_LIST, params.StringParam, default='0',
@@ -108,18 +120,35 @@ tomograms followed by per-pixel averaging."""
     # --------------------------- STEPS functions ------------------------------
     def _insertAllSteps(self):
         self._initialize()
-        # Insert processing steps
-        for evenTomo, oddTomo in zip(self.even.get(), self.odd.get()):
-            tsId = evenTomo.getTsId()
-            self._insertFunctionStep(self.preparePredictStep, evenTomo.getFileName(), oddTomo.getFileName(), tsId)
-            self._insertFunctionStep(self.predictStep, tsId)
-            self._insertFunctionStep(self.createOutputStep, tsId)
+
+        if self.useIndependentOddEven.get():
+            # Insert processing steps
+            for evenTomo, oddTomo in zip(self.even.get(), self.odd.get()):
+                tsId = evenTomo.getTsId()
+                self._insertFunctionStep(self.preparePredictStep, tsId, evenTomo.getFileName(), oddTomo.getFileName())
+                self._insertFunctionStep(self.predictStep, tsId)
+                self._insertFunctionStep(self.createOutputStep, tsId)
+        else:
+            for t in self.tomo.get():
+                tsId = t.getTsId()
+                self._insertFunctionStep(self.preparePredictFullTomoStep, tsId, t)
+                self._insertFunctionStep(self.predictStep, tsId)
+                self._insertFunctionStep(self.createOutputStep, tsId)
+
 
     def _initialize(self):
         makePath(self._getPredictConfDir())
-        self.sRate = self.even.get().getSamplingRate()
+        if self.useIndependentOddEven.get():
+            self.sRate = self.even.get().getSamplingRate()
+        else:
+            self.sRate = self.tomo.get().getSamplingRate()
 
-    def preparePredictStep(self, evenTomo, oddTomo, tsId):
+
+    def preparePredictFullTomoStep(self, tsId, inputTomo):
+        odd, even = inputTomo.getHalfMaps().split(',')
+        self.preparePredictStep(tsId, odd, even)
+
+    def preparePredictStep(self, tsId, evenTomo, oddTomo):
         config = {
             'path': self.model.get().getPath(),
             'even': evenTomo,
@@ -145,14 +174,19 @@ tomograms followed by per-pixel averaging."""
         outputSetOfTomo = getattr(self, outputObjects.tomograms.name, None)
         if not outputSetOfTomo:
             outputSetOfTomo = SetOfTomograms.create(self._getPath(), template='tomograms%s.sqlite', suffix=DENOISED_SUFFIX)
-            outputSetOfTomo.copyInfo(self.even.get())
-
+            if self.useIndependentOddEven.get():
+                outputSetOfTomo.copyInfo(self.even.get())
+            else:
+                outputSetOfTomo.copyInfo(self.tomo.get())
         tomo = self._genOutputTomogram(tsId)
         outputSetOfTomo.append(tomo)
 
         self._defineOutputs(**{outputObjects.tomograms.name: outputSetOfTomo})
-        self._defineSourceRelation(self.even.get(), outputSetOfTomo)
-        self._defineSourceRelation(self.odd.get(), outputSetOfTomo)
+        if self.useIndependentOddEven.get():
+            self._defineSourceRelation(self.even.get(), outputSetOfTomo)
+            self._defineSourceRelation(self.odd.get(), outputSetOfTomo)
+        else:
+            self._defineSourceRelation(self.tomo.get(), outputSetOfTomo)
         self._defineSourceRelation(self.model.get(), outputSetOfTomo)
 
     # --------------------------- INFO functions -----------------------------------
@@ -167,15 +201,16 @@ tomograms followed by per-pixel averaging."""
     def _validate(self):
         validateMsgs = []
         # Check the sampling rate
-        sRateEven = self.even.get().getSamplingRate()
-        sRateOdd = self.odd.get().getSamplingRate()
-        if sRateEven != sRateOdd:
-            validateMsgs.append('The sampling rate of the introduced sets of tomograms is different:\n'
-                                'Even SR %.2f != Odd SR %.2f\n\n' % (sRateEven, sRateOdd))
-        # Check the size
-        msg = checkInputTomoSetsSize(self.even.get(), self.odd.get())
-        if msg:
-            validateMsgs.append(msg)
+        if self.useIndependentOddEven.get():
+            sRateEven = self.even.get().getSamplingRate()
+            sRateOdd = self.odd.get().getSamplingRate()
+            if sRateEven != sRateOdd:
+                validateMsgs.append('The sampling rate of the introduced sets of tomograms is different:\n'
+                                    'Even SR %.2f != Odd SR %.2f\n\n' % (sRateEven, sRateOdd))
+            msg = checkInputTomoSetsSize(self.even.get(), self.odd.get())
+            if msg:
+                validateMsgs.append(msg)
+
         return validateMsgs
 
     # --------------------------- UTIL functions -----------------------------------

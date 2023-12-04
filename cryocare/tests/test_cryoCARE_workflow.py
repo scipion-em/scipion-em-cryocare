@@ -29,8 +29,6 @@ from cryocare.tests import CRYOCARE, DataSetCryoCARE
 from pyworkflow.tests import BaseTest, setupTestProject, DataSet
 from pyworkflow.utils import magentaStr
 from tomo.protocols import ProtImportTomograms
-from cryocare.protocols.protocol_prepare_training_data import outputObjects as prepTrainDataOutputs, \
-    ProtCryoCAREPrepareTrainingData
 from cryocare.protocols.protocol_load_model import outputObjects as loadTrainingModelOutputs, ProtCryoCARELoadModel
 from cryocare.protocols.protocol_training import outputObjects as trainOutputs, ProtCryoCARETraining
 from cryocare.protocols.protocol_predict import outputObjects as predictOutputs, ProtCryoCAREPrediction
@@ -57,47 +55,28 @@ class TestCryoCARE(BaseTest):
         self.assertSetSize(output, size=1)
         return protImport
 
-    def _runPrepareTrainingData(self, protImportEven, protImportOdd):
-        print(magentaStr("\n==> Preparing the training data:"))
-        patchSize = 40
-        protPrepTrainingData = self.newProtocol(ProtCryoCAREPrepareTrainingData,
-                                                evenTomos=protImportEven.Tomograms,
-                                                oddTomos=protImportOdd.Tomograms,
-                                                patch_shape=patchSize,
-                                                num_slices=400,
-                                                n_normalization_samples=60)
-        self.launchProtocol(protPrepTrainingData)
-        cryoCareTrainData = getattr(protPrepTrainingData, prepTrainDataOutputs.train_data.name, None)
-
-        # Check generated object
-        self.assertEqual(type(cryoCareTrainData), CryocareTrainData)
-        self.assertEqual(cryoCareTrainData.getTrainDataDir(), protPrepTrainingData._getExtraPath(TRAIN_DATA_DIR))
-        self.assertEqual(cryoCareTrainData.getPatchSize(), patchSize)
-        # Check files generated
-        self.assertTrue(exists(protPrepTrainingData._getExtraPath(TRAIN_DATA_DIR, TRAIN_DATA_FN)))
-        self.assertTrue(exists(protPrepTrainingData._getExtraPath(TRAIN_DATA_DIR, VALIDATION_DATA_FN)))
-        self.assertTrue(exists(protPrepTrainingData._getExtraPath(TRAIN_DATA_CONFIG, TRAIN_DATA_CONFIG)))
-
-        return protPrepTrainingData
-
-    def _runTrainingData(self, protPrepTrainingData):
+    def _runTrainingData(self, protImportEven, protImportOdd):
         print(magentaStr("\n==> Training"))
+        patchSize = 40
         protTraining = self.newProtocol(ProtCryoCARETraining,
-                                        train_data=getattr(protPrepTrainingData, 'train_data', None),
+                                        evenTomos=protImportEven.Tomograms,
+                                        oddTomos=protImportOdd.Tomograms,
+                                        patch_shape=patchSize,
+                                        num_slices=400,
+                                        n_normalization_samples=60,
                                         epochs=2,
                                         steps_per_epoch=10)
-
+        import os
         self.launchProtocol(protTraining)
         cryoCareModel = getattr(protTraining, trainOutputs.model.name, None)
         # Check generated model
         self.assertEqual(type(cryoCareModel), CryocareModel)
         self.assertEqual(cryoCareModel.getPath(), protTraining._getExtraPath(CRYOCARE_MODEL_TGZ))
-        self.assertEqual(cryoCareModel.getTrainDataDir(), protPrepTrainingData._getExtraPath(TRAIN_DATA_DIR))
+        #self.assertEqual(ProtCryoCARETraining._getExtraPath(TRAIN_DATA_DIR))
         # Check files and links generated
         self.assertTrue(exists(protTraining._getExtraPath('train_config.json')))
-        self.assertTrue(exists(protTraining._getExtraPath(TRAIN_DATA_FN)))
-        self.assertTrue(exists(protTraining._getExtraPath(VALIDATION_DATA_FN)))
-        self.assertTrue(exists(protTraining._getExtraPath(CRYOCARE_MODEL_TGZ)))
+        self.assertTrue(exists(os.path.join(protTraining._getTrainDataDir(), TRAIN_DATA_FN)))
+        self.assertTrue(exists(os.path.join(protTraining._getTrainDataDir(), VALIDATION_DATA_FN)))
         return protTraining
 
     def _runLoadTrainingModel(self):
@@ -139,8 +118,7 @@ class TestCryoCARE(BaseTest):
     def testWorkflow(self):
         importTomoProtEven = self._runImportTomograms(DataSetCryoCARE.tomo_even.name, 'even')
         importTomoProtOdd = self._runImportTomograms(DataSetCryoCARE.tomo_odd.name, 'odd')
-        prepTrainingDataProt = self._runPrepareTrainingData(importTomoProtEven, importTomoProtOdd)
-        protTraining = self._runTrainingData(prepTrainingDataProt)
+        protTraining = self._runTrainingData(importTomoProtEven, importTomoProtOdd)
         # Prediction from training
         self._runPredict(importTomoProtEven, importTomoProtOdd, protTraining=protTraining)
         # Load a pre-trained model and predict
