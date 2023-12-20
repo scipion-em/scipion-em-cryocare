@@ -122,28 +122,28 @@ tomograms followed by per-pixel averaging."""
 
         if self.useIndependentOddEven.get():
             # Insert processing steps
-            for evenTomo, oddTomo in zip(self.even.get(), self.odd.get()):
+            tomoListEven = [tomo.clone() for tomo in self.even.get()]
+            tomoListOdd = [tomo.clone() for tomo in self.odd.get()]
+            for evenTomo, oddTomo in zip(tomoListEven, tomoListOdd):
                 tsId = evenTomo.getTsId()
                 self._insertFunctionStep(self.preparePredictStep, tsId, evenTomo.getFileName(), oddTomo.getFileName())
                 self._insertFunctionStep(self.predictStep, tsId)
-                self._insertFunctionStep(self.createOutputStep, tsId)
+                self._insertFunctionStep(self.createOutputStep, evenTomo)
         else:
-            for t in self.tomo.get():
-                tsId = t.getTsId()
-                self._insertFunctionStep(self.preparePredictFullTomoStep, tsId, t)
-                self._insertFunctionStep(self.predictStep, tsId)
-                self._insertFunctionStep(self.createOutputStep, tsId)
+            tomoList = [tomo.clone() for tomo in self.tomo.get()]
+            for tomo in tomoList:
+                self._insertFunctionStep(self.preparePredictFullTomoStep, tomo)
+                self._insertFunctionStep(self.predictStep, tomo.getTsId())
+                self._insertFunctionStep(self.createOutputStep, tomo)
 
     def _initialize(self):
         makePath(self._getPredictConfDir())
-        if self.useIndependentOddEven.get():
-            self.sRate = self.even.get().getSamplingRate()
-        else:
-            self.sRate = self.tomo.get().getSamplingRate()
+        tomoSet = self.even.get() if self.useIndependentOddEven.get() else self.tomo.get()
+        self.sRate = tomoSet.getSamplingRate()
 
-    def preparePredictFullTomoStep(self, tsId, inputTomo):
-        odd, even = inputTomo.getHalfMaps().split(',')
-        self.preparePredictStep(tsId, odd, even)
+    def preparePredictFullTomoStep(self, tomo):
+        odd, even = tomo.getHalfMaps().split(',')
+        self.preparePredictStep(tomo.getTsId(), odd, even)
 
     def preparePredictStep(self, tsId, evenTomo, oddTomo):
         config = {
@@ -167,16 +167,17 @@ tomograms followed by per-pixel averaging."""
         finalNameRe = re.compile(re.escape(EVEN), re.IGNORECASE)  # Used to do a case-insensitive replacement
         shutil.move(origName, finalNameRe.sub('', origName))
 
-    def createOutputStep(self, tsId):
+    def createOutputStep(self, tomo):
         outputSetOfTomo = getattr(self, outputObjects.tomograms.name, None)
         if not outputSetOfTomo:
-            outputSetOfTomo = SetOfTomograms.create(self._getPath(), template='tomograms%s.sqlite',
+            outputSetOfTomo = SetOfTomograms.create(self._getPath(),
+                                                    template='tomograms%s.sqlite',
                                                     suffix=DENOISED_SUFFIX)
             if self.useIndependentOddEven.get():
                 outputSetOfTomo.copyInfo(self.even.get())
             else:
                 outputSetOfTomo.copyInfo(self.tomo.get())
-        tomo = self._genOutputTomogram(tsId)
+        tomo = self._genOutputTomogram(tomo)
         outputSetOfTomo.append(tomo)
 
         self._defineOutputs(**{outputObjects.tomograms.name: outputSetOfTomo})
@@ -226,9 +227,8 @@ tomograms followed by per-pixel averaging."""
     def _getOutputFile(self, tsId):
         return glob.glob(join(self._getOutputPath(tsId), '*.mrc'))[0]  # Only one file is contained in each dir
 
-    def _genOutputTomogram(self, tsId):
+    def _genOutputTomogram(self, inTomo):
         tomo = Tomogram()
-        tomo.setLocation(self._getOutputFile(tsId))
-        tomo.setSamplingRate(self.sRate)
-        tomo.setTsId(tsId)
+        tomo.copyInfo(inTomo)
+        tomo.setLocation(self._getOutputFile(inTomo.getTsId()))
         return tomo
