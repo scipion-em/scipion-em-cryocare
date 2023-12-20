@@ -39,7 +39,6 @@ from cryocare import Plugin
 from tomo.objects import Tomogram, SetOfTomograms
 from cryocare.constants import PREDICT_CONFIG
 
-
 DENOISED_SUFFIX = 'denoised'
 EVEN = 'even'
 
@@ -135,14 +134,12 @@ tomograms followed by per-pixel averaging."""
                 self._insertFunctionStep(self.predictStep, tsId)
                 self._insertFunctionStep(self.createOutputStep, tsId)
 
-
     def _initialize(self):
         makePath(self._getPredictConfDir())
         if self.useIndependentOddEven.get():
             self.sRate = self.even.get().getSamplingRate()
         else:
             self.sRate = self.tomo.get().getSamplingRate()
-
 
     def preparePredictFullTomoStep(self, tsId, inputTomo):
         odd, even = inputTomo.getHalfMaps().split(',')
@@ -173,7 +170,8 @@ tomograms followed by per-pixel averaging."""
     def createOutputStep(self, tsId):
         outputSetOfTomo = getattr(self, outputObjects.tomograms.name, None)
         if not outputSetOfTomo:
-            outputSetOfTomo = SetOfTomograms.create(self._getPath(), template='tomograms%s.sqlite', suffix=DENOISED_SUFFIX)
+            outputSetOfTomo = SetOfTomograms.create(self._getPath(), template='tomograms%s.sqlite',
+                                                    suffix=DENOISED_SUFFIX)
             if self.useIndependentOddEven.get():
                 outputSetOfTomo.copyInfo(self.even.get())
             else:
@@ -226,10 +224,11 @@ tomograms followed by per-pixel averaging."""
         return outPathRe.sub('', outPath)
 
     def _getOutputFile(self, tsId):
-        return glob.glob(join(self._getOutputPath(tsId), '*.mrc'))[0] # Only one file is contained in each dir
+        return glob.glob(join(self._getOutputPath(tsId), '*.mrc'))[0]  # Only one file is contained in each dir
 
     def _genOutputTomogram(self, tsId):
         tomo = Tomogram()
         tomo.setLocation(self._getOutputFile(tsId))
         tomo.setSamplingRate(self.sRate)
+        tomo.setTsId(tsId)
         return tomo

@@ -24,59 +24,61 @@
 # *
 # **************************************************************************
 
-from os.path import exists
+from os.path import exists, join
 from cryocare.tests import CRYOCARE, DataSetCryoCARE
-from pyworkflow.tests import BaseTest, setupTestProject, DataSet
+from pyworkflow.tests import setupTestProject, DataSet
 from pyworkflow.utils import magentaStr
 from tomo.protocols import ProtImportTomograms
 from cryocare.protocols.protocol_load_model import outputObjects as loadTrainingModelOutputs, ProtCryoCARELoadModel
 from cryocare.protocols.protocol_training import outputObjects as trainOutputs, ProtCryoCARETraining
 from cryocare.protocols.protocol_predict import outputObjects as predictOutputs, ProtCryoCAREPrediction
-from cryocare.constants import TRAIN_DATA_FN, TRAIN_DATA_CONFIG, TRAIN_DATA_DIR, VALIDATION_DATA_FN, CRYOCARE_MODEL_TGZ
-from cryocare.objects import CryocareTrainData, CryocareModel
+from cryocare.constants import TRAIN_DATA_FN, VALIDATION_DATA_FN, CRYOCARE_MODEL_TGZ
+from cryocare.objects import CryocareModel
+from tomo.tests.test_base_centralized_layer import TestBaseCentralizedLayer
 
 
-class TestCryoCARE(BaseTest):
+class TestCryoCARE(TestBaseCentralizedLayer):
 
     @classmethod
     def setUpClass(cls):
         setupTestProject(cls)
         cls.dataset = DataSet.getDataSet(CRYOCARE)
-        cls.sRate = 4.71
 
     def _runImportTomograms(self, tomoFile, mode):
         print(magentaStr("\n==> Importing the %s tomograms:" % mode))
+        sRate = DataSetCryoCARE.sRate.value
         protImport = self.newProtocol(ProtImportTomograms,
                                       filesPath=self.dataset.getFile(tomoFile),
-                                      samplingRate=self.sRate)
+                                      samplingRate=sRate)
         protImport.setObjLabel('Import %s tomograms' % mode)
         self.launchProtocol(protImport)
         output = getattr(protImport, 'Tomograms', None)
-        self.assertSetSize(output, size=1)
-        return protImport
+        self.checkTomograms(output,
+                            expectedSetSize=DataSetCryoCARE.tomoSetSize.value,
+                            expectedSRate=sRate,
+                            expectedDimensions=DataSetCryoCARE.tomoDimensions.value)
+        return output
 
-    def _runTrainingData(self, protImportEven, protImportOdd):
+    def _runTrainingData(self, evenTomos, oddTomos):
         print(magentaStr("\n==> Training"))
         patchSize = 40
         protTraining = self.newProtocol(ProtCryoCARETraining,
-                                        evenTomos=protImportEven.Tomograms,
-                                        oddTomos=protImportOdd.Tomograms,
+                                        evenTomos=evenTomos,
+                                        oddTomos=oddTomos,
                                         patch_shape=patchSize,
                                         num_slices=400,
                                         n_normalization_samples=60,
                                         epochs=2,
                                         steps_per_epoch=10)
-        import os
         self.launchProtocol(protTraining)
         cryoCareModel = getattr(protTraining, trainOutputs.model.name, None)
         # Check generated model
         self.assertEqual(type(cryoCareModel), CryocareModel)
         self.assertEqual(cryoCareModel.getPath(), protTraining._getExtraPath(CRYOCARE_MODEL_TGZ))
-        #self.assertEqual(ProtCryoCARETraining._getExtraPath(TRAIN_DATA_DIR))
         # Check files and links generated
         self.assertTrue(exists(protTraining._getExtraPath('train_config.json')))
-        self.assertTrue(exists(os.path.join(protTraining._getTrainDataDir(), TRAIN_DATA_FN)))
-        self.assertTrue(exists(os.path.join(protTraining._getTrainDataDir(), VALIDATION_DATA_FN)))
+        self.assertTrue(exists(join(protTraining._getTrainDataDir(), TRAIN_DATA_FN)))
+        self.assertTrue(exists(join(protTraining._getTrainDataDir(), VALIDATION_DATA_FN)))
         return protTraining
 
     def _runLoadTrainingModel(self):
@@ -92,35 +94,33 @@ class TestCryoCARE(BaseTest):
         self.assertEqual(cryoCareModel.getTrainDataDir(), protImportTM._getExtraPath())
         return protImportTM
 
-    def _runPredict(self, protImportEven, protImportOdd, **kwargs):
-        protLoadPreTrainedModel = kwargs.get("protLoadPreTrainedModel", None)
-        protTraining = kwargs.get("protTraining", None)
-        if protLoadPreTrainedModel:
-            print(magentaStr("\n==> Loading a pre-trained model and predicting:"))
-            trainedModelProt = protLoadPreTrainedModel
-        else:
-            print(magentaStr("\n==> Predicting:"))
-            trainedModelProt = protTraining
+    def _runPredict(self, evenTomos, oddTomos, model, displayText=None):
+        if displayText:
+            print(magentaStr(displayText))
 
         # Predict
         protPredict = self.newProtocol(ProtCryoCAREPrediction,
-                                       even=protImportEven.Tomograms,
-                                       odd=protImportOdd.Tomograms,
-                                       model=getattr(trainedModelProt, trainOutputs.model.name, None))
+                                       even=evenTomos,
+                                       odd=oddTomos,
+                                       model=model)
 
         self.launchProtocol(protPredict)
         output = getattr(protPredict, predictOutputs.tomograms.name, None)
-        self.assertEqual(output.getDim(), (618, 639, 104))
-        self.assertEqual(output.getSize(), 1)
-        self.assertEqual(output.getSamplingRate(), self.sRate)
-        self.assertTrue(exists(protPredict._getExtraPath('Tomo110__bin6_denoised', 'Tomo110__bin6.mrc')))
+        self.checkTomograms(output,
+                            expectedSetSize=DataSetCryoCARE.tomoSetSize.value,
+                            expectedSRate=DataSetCryoCARE.sRate.value,
+                            expectedDimensions=DataSetCryoCARE.tomoDimensions.value)
 
     def testWorkflow(self):
-        importTomoProtEven = self._runImportTomograms(DataSetCryoCARE.tomo_even.name, 'even')
-        importTomoProtOdd = self._runImportTomograms(DataSetCryoCARE.tomo_odd.name, 'odd')
-        protTraining = self._runTrainingData(importTomoProtEven, importTomoProtOdd)
+        evenTomos = self._runImportTomograms(DataSetCryoCARE.tomo_even.name, 'even')
+        oddTomos = self._runImportTomograms(DataSetCryoCARE.tomo_odd.name, 'odd')
+        protTraining = self._runTrainingData(evenTomos, oddTomos)
         # Prediction from training
-        self._runPredict(importTomoProtEven, importTomoProtOdd, protTraining=protTraining)
+        displayText = "\n==> Predicting:"
+        model = getattr(protTraining, trainOutputs.model.name, None)
+        self._runPredict(evenTomos, oddTomos, model, displayText=displayText)
         # Load a pre-trained model and predict
+        displayText = "\n==> Loading a pre-trained model and predicting:"
         protLoadPreTrainedModel = self._runLoadTrainingModel()
-        self._runPredict(importTomoProtEven, importTomoProtOdd, protTraining=protLoadPreTrainedModel)
+        model = getattr(protLoadPreTrainedModel, trainOutputs.model.name, None)
+        self._runPredict(evenTomos, oddTomos, model, displayText=displayText)

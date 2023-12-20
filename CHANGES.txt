@@ -1,3 +1,8 @@
+3.2.2:
+ Users:
+  - Hotfix: predict protocol was not setting the tilt series id to the generated tomograms.
+ Developers:
+  - Tests refactored using the Test Centralization Layer from scipion-em-tomo.
 3.2.1: Re-deploy to pypi
 3.2:
     - Use of odd even simplified and associated to the tomograms
