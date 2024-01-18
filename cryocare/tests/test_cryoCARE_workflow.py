@@ -29,9 +29,9 @@ from cryocare.tests import CRYOCARE, DataSetCryoCARE
 from pyworkflow.tests import setupTestProject, DataSet
 from pyworkflow.utils import magentaStr
 from tomo.protocols import ProtImportTomograms
-from cryocare.protocols.protocol_load_model import outputObjects as loadTrainingModelOutputs, ProtCryoCARELoadModel
-from cryocare.protocols.protocol_training import outputObjects as trainOutputs, ProtCryoCARETraining
-from cryocare.protocols.protocol_predict import outputObjects as predictOutputs, ProtCryoCAREPrediction
+from cryocare.protocols.protocol_load_model import Outputobjects as loadTrainingModelOutputs, ProtCryoCARELoadModel
+from cryocare.protocols.protocol_training import Outputobjects as trainOutputs, ProtCryoCARETraining
+from cryocare.protocols.protocol_predict import Outputobjects as predictOutputs, ProtCryoCAREPrediction
 from cryocare.constants import TRAIN_DATA_FN, VALIDATION_DATA_FN, CRYOCARE_MODEL_TGZ
 from cryocare.objects import CryocareModel
 from tomo.tests.test_base_centralized_layer import TestBaseCentralizedLayer
@@ -100,8 +100,8 @@ class TestCryoCARE(TestBaseCentralizedLayer):
 
         # Predict
         protPredict = self.newProtocol(ProtCryoCAREPrediction,
-                                       even=evenTomos,
-                                       odd=oddTomos,
+                                       evenTomos=evenTomos,
+                                       oddTomos=oddTomos,
                                        model=model)
 
         self.launchProtocol(protPredict)
