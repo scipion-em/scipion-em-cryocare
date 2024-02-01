@@ -29,11 +29,12 @@ import re
 import shutil
 from enum import Enum
 from os.path import join
+
+from cryocare.protocols.protocol_base import ProtCryoCAREBase
 from cryocare.utils import checkInputTomoSetsSize
-from pwem.protocols import EMProtocol
 from pyworkflow import BETA
 from pyworkflow.protocol import params, StringParam
-from pyworkflow.utils import Message, makePath
+from pyworkflow.utils import makePath
 from scipion.constants import PYTHON
 from cryocare import Plugin
 from tomo.objects import Tomogram, SetOfTomograms
@@ -43,21 +44,20 @@ DENOISED_SUFFIX = 'denoised'
 EVEN = 'even'
 
 
-class outputObjects(Enum):
+class Outputobjects(Enum):
     tomograms = SetOfTomograms
 
 
-class ProtCryoCAREPrediction(EMProtocol):
+class ProtCryoCAREPrediction(ProtCryoCAREBase):
     """Generate the final restored tomogram by applying the cryoCARE trained network to both
 tomograms followed by per-pixel averaging."""
 
     _label = 'CryoCARE Prediction'
     _devStatus = BETA
-    _possibleOutputs = outputObjects
+    _possibleOutputs = Outputobjects
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._configPath = {}
         self.sRate = None
 
     # -------------------------- DEFINE param functions ----------------------
@@ -66,36 +66,7 @@ tomograms followed by per-pixel averaging."""
         Params:
             form: this is the form to be populated with sections and params.
         """
-        # You need a params to belong to a section:
-        form.addSection(label=Message.LABEL_INPUT)
-        form.addParam('useIndependentOddEven', params.BooleanParam,
-                      default=True,
-                      label="Are odd-even associated to the Tomograms?",
-                      help=" .")
-        form.addParam('even', params.PointerParam,
-                      pointerClass='SetOfTomograms',
-                      condition='useIndependentOddEven',
-                      label='Even tomograms',
-                      important=True,
-                      allowsNull=False,
-                      help='Set of tomograms reconstructed from the even frames of the tilt'
-                           'series movies.')
-        form.addParam('odd', params.PointerParam,
-                      pointerClass='SetOfTomograms',
-                      condition='useIndependentOddEven',
-                      label='Odd tomograms',
-                      important=True,
-                      allowsNull=False,
-                      help='Set of tomogram reconstructed from the odd frames of the tilt'
-                           'series movies.')
-        form.addParam('tomo', params.PointerParam,
-                      pointerClass='SetOfTomograms',
-                      condition='not useIndependentOddEven',
-                      label='Tomograms',
-                      important=True,
-                      help='Set of tomograms reconstructed from the even frames of the tilt'
-                           'series movies.')
-
+        super()._defineParams(form)
         form.addParam('model', params.PointerParam,
                       pointerClass='CryocareModel',
                       label="cryoCARE Model",
@@ -118,32 +89,29 @@ tomograms followed by per-pixel averaging."""
 
     # --------------------------- STEPS functions ------------------------------
     def _insertAllSteps(self):
-        self._initialize()
-
-        if self.useIndependentOddEven.get():
-            # Insert processing steps
-            tomoListEven = [tomo.clone() for tomo in self.even.get()]
-            tomoListOdd = [tomo.clone() for tomo in self.odd.get()]
-            for evenTomo, oddTomo in zip(tomoListEven, tomoListOdd):
-                tsId = evenTomo.getTsId()
-                self._insertFunctionStep(self.preparePredictStep, tsId, evenTomo.getFileName(), oddTomo.getFileName())
-                self._insertFunctionStep(self.predictStep, tsId)
-                self._insertFunctionStep(self.createOutputStep, evenTomo)
-        else:
-            tomoList = [tomo.clone() for tomo in self.tomo.get()]
-            for tomo in tomoList:
-                self._insertFunctionStep(self.preparePredictFullTomoStep, tomo)
-                self._insertFunctionStep(self.predictStep, tomo.getTsId())
-                self._insertFunctionStep(self.createOutputStep, tomo)
+        tomoListEven, tomoListOdd = self._initialize()
+        for evenTomo, oddTomo in zip(tomoListEven, tomoListOdd):
+            tsId = evenTomo.getTsId()
+            self._insertFunctionStep(self.preparePredictStep, tsId, evenTomo.getFileName(), oddTomo.getFileName())
+            self._insertFunctionStep(self.predictStep, tsId)
+            self._insertFunctionStep(self.createOutputStep, evenTomo)
 
     def _initialize(self):
         makePath(self._getPredictConfDir())
-        tomoSet = self.even.get() if self.useIndependentOddEven.get() else self.tomo.get()
+        tomoSet = self.tomo.get() if self.areEvenOddLinked.get() else self.evenTomos.get()
         self.sRate = tomoSet.getSamplingRate()
-
-    def preparePredictFullTomoStep(self, tomo):
-        odd, even = tomo.getHalfMaps().split(',')
-        self.preparePredictStep(tomo.getTsId(), odd, even)
+        if self.areEvenOddLinked.get():
+            tomoList = [tomo.clone() for tomo in self.tomo.get()]
+            tomoListEven = []
+            tomoListOdd = []
+            for tomo in tomoList:
+                odd, even = tomo.getHalfMaps().split(',')
+                tomoListEven.append(even)
+                tomoListOdd.append(odd)
+        else:
+            tomoListEven = [tomo.clone() for tomo in self.evenTomos.get()]
+            tomoListOdd = [tomo.clone() for tomo in self.oddTomos.get()]
+        return tomoListEven, tomoListOdd
 
     def preparePredictStep(self, tsId, evenTomo, oddTomo):
         config = {
@@ -154,13 +122,12 @@ tomograms followed by per-pixel averaging."""
             'output': self._getOutputPath(tsId),
             'overwrite': False
         }
-        self._configPath[tsId] = join(self._getPredictConfDir(), '%s_%s.json' % (PREDICT_CONFIG, tsId))
-        with open(self._configPath[tsId], 'w+') as f:
+        with open(self.getConfigPath(tsId), 'w+') as f:
             json.dump(config, f, indent=2)
 
     def predictStep(self, tsId):
         # Run cryoCARE
-        Plugin.runCryocare(self, PYTHON, '$(which cryoCARE_predict.py) --conf %s' % self._configPath[tsId],
+        Plugin.runCryocare(self, PYTHON, '$(which cryoCARE_predict.py) --conf %s' % self.getConfigPath(tsId),
                            gpuId=getattr(self, params.GPU_LIST).get())
         # Remove even/odd words from the output name to avoid confusion
         origName = self._getOutputFile(tsId)
@@ -168,24 +135,24 @@ tomograms followed by per-pixel averaging."""
         shutil.move(origName, finalNameRe.sub('', origName))
 
     def createOutputStep(self, tomo):
-        outputSetOfTomo = getattr(self, outputObjects.tomograms.name, None)
+        outputSetOfTomo = getattr(self, Outputobjects.tomograms.name, None)
         if not outputSetOfTomo:
             outputSetOfTomo = SetOfTomograms.create(self._getPath(),
                                                     template='tomograms%s.sqlite',
                                                     suffix=DENOISED_SUFFIX)
-            if self.useIndependentOddEven.get():
-                outputSetOfTomo.copyInfo(self.even.get())
-            else:
+            if self.areEvenOddLinked.get():
                 outputSetOfTomo.copyInfo(self.tomo.get())
-        tomo = self._genOutputTomogram(tomo)
-        outputSetOfTomo.append(tomo)
+            else:
+                outputSetOfTomo.copyInfo(self.evenTomos.get())
+        outTomo = self._genOutputTomogram(tomo)
+        outputSetOfTomo.append(outTomo)
 
-        self._defineOutputs(**{outputObjects.tomograms.name: outputSetOfTomo})
-        if self.useIndependentOddEven.get():
-            self._defineSourceRelation(self.even.get(), outputSetOfTomo)
-            self._defineSourceRelation(self.odd.get(), outputSetOfTomo)
-        else:
+        self._defineOutputs(**{Outputobjects.tomograms.name: outputSetOfTomo})
+        if self.areEvenOddLinked.get():
             self._defineSourceRelation(self.tomo.get(), outputSetOfTomo)
+        else:
+            self._defineSourceRelation(self.evenTomos.get(), outputSetOfTomo)
+            self._defineSourceRelation(self.oddTomos.get(), outputSetOfTomo)
         self._defineSourceRelation(self.model.get(), outputSetOfTomo)
 
     # --------------------------- INFO functions -----------------------------------
@@ -200,13 +167,13 @@ tomograms followed by per-pixel averaging."""
     def _validate(self):
         validateMsgs = []
         # Check the sampling rate
-        if self.useIndependentOddEven.get():
-            sRateEven = self.even.get().getSamplingRate()
-            sRateOdd = self.odd.get().getSamplingRate()
+        if not self.areEvenOddLinked.get():
+            sRateEven = self.evenTomos.get().getSamplingRate()
+            sRateOdd = self.oddTomos.get().getSamplingRate()
             if sRateEven != sRateOdd:
                 validateMsgs.append('The sampling rate of the introduced sets of tomograms is different:\n'
                                     'Even SR %.2f != Odd SR %.2f\n\n' % (sRateEven, sRateOdd))
-            msg = checkInputTomoSetsSize(self.even.get(), self.odd.get())
+            msg = checkInputTomoSetsSize(self.evenTomos.get(), self.oddTomos.get())
             if msg:
                 validateMsgs.append(msg)
 
@@ -215,6 +182,9 @@ tomograms followed by per-pixel averaging."""
     # --------------------------- UTIL functions -----------------------------------
     def _getPredictConfDir(self):
         return self._getExtraPath(PREDICT_CONFIG)
+
+    def getConfigPath(self, tsId):
+        return join(self._getPredictConfDir(), '%s_%s.json' % (PREDICT_CONFIG, tsId))
 
     def _getOutputPath(self, tsId):
         """cryoCARE will generate a new folder for each tomogram denoised. Apart from that, if the

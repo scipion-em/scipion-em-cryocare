@@ -11,7 +11,7 @@ from cryocare.constants import TRAIN_DATA_FN, VALIDATION_DATA_FN
 from cryocare.objects import CryocareModel
 
 
-class outputObjects(Enum):
+class Outputobjects(Enum):
     model = CryocareModel
 
 
@@ -20,7 +20,7 @@ class ProtCryoCARELoadModel(EMProtocol):
 
     _label = 'CryoCARE Load Trained Model'
     _devStatus = BETA
-    _possibleOutputs = outputObjects
+    _possibleOutputs = Outputobjects
 
     # -------------------------- DEFINE param functions ----------------------
     def _defineParams(self, form):
@@ -60,7 +60,7 @@ class ProtCryoCARELoadModel(EMProtocol):
 
     def createOutputStep(self):
         model = CryocareModel(model_file=getModelName(self), train_data_dir=self._getExtraPath())
-        self._defineOutputs(**{outputObjects.model.name: model})
+        self._defineOutputs(**{Outputobjects.model.name: model})
 
     # --------------------------- INFO functions -----------------------------------
     def _validate(self):

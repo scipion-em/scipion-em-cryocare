@@ -1,7 +1,10 @@
-3.2.2:
+4.0.0:
  Users:
+  - Prepare data protocol was removed, and now it's a step of the training protocol.
   - Hotfix: predict protocol was not setting the tilt series id to the generated tomograms.
  Developers:
+  - Even/Odd present in metadata or not logic was inverted along the training and predict protocols.
+  - Add a base protocol to manage these two entryways to the training and predict protocols.
   - Tests refactored using the Test Centralization Layer from scipion-em-tomo.
 3.2.1: Re-deploy to pypi
 3.2:
