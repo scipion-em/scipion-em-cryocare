@@ -5,16 +5,16 @@ from enum import Enum
 from os.path import join
 import numpy as np
 
+from cryocare.protocols.protocol_base import ProtCryoCAREBase
 from cryocare.utils import checkInputTomoSetsSize, getModelName
-from pwem.protocols import EMProtocol
 from pyworkflow import BETA
 from pyworkflow.protocol import params, IntParam, FloatParam, Positive, LT, GT, GE, LEVEL_ADVANCED, EnumParam
-from pyworkflow.utils import Message, makePath, moveFile
+from pyworkflow.utils import makePath, moveFile
 from scipion.constants import PYTHON
 
 from cryocare import Plugin
 from cryocare.constants import TRAIN_DATA_DIR, TRAIN_DATA_FN, TRAIN_DATA_CONFIG, VALIDATION_DATA_FN, CRYOCARE_MODEL
-from cryocare.objects import CryocareTrainData, CryocareModel
+from cryocare.objects import CryocareModel
 
 
 # Tilt axis values
@@ -26,17 +26,21 @@ Y_AXIS_LABEL = 'Y'
 Z_AXIS_LABEL = 'Z'
 
 
-class outputObjects(Enum):
+class Outputobjects(Enum):
     model = CryocareModel
 
 
-class ProtCryoCARETraining(EMProtocol):
+class ProtCryoCARETraining(ProtCryoCAREBase):
     """Operate the data to make it be expressed as expected by cryoCARE net."""
 
     _label = 'CryoCARE Training'
     _devStatus = BETA
-    _configFile = None
-    _possibleOutputs = outputObjects
+    _possibleOutputs = Outputobjects
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._configFile = None
+        self._configPath = None
 
     # -------------------------- DEFINE param functions ----------------------
 
@@ -45,34 +49,7 @@ class ProtCryoCARETraining(EMProtocol):
         Params:
             form: this is the form to be populated with sections and params.
         """
-        # You need a params to belong to a section:
-        form.addSection(label=Message.LABEL_INPUT)
-        form.addParam('useIndependentOddEven', params.BooleanParam,
-                      default=True,
-                      label="Are odd-even associated to the Tomograms?",
-                      help=" .")
-        form.addParam('evenTomos', params.PointerParam,
-                      pointerClass='SetOfTomograms',
-                      condition='useIndependentOddEven',
-                      label='Even tomograms',
-                      allowsNull=False,
-                      help='Set of tomograms reconstructed from the even frames of the tilt'
-                           'series movies.')
-        form.addParam('oddTomos', params.PointerParam,
-                      pointerClass='SetOfTomograms',
-                      condition='useIndependentOddEven',
-                      label='Odd tomograms',
-                      allowsNull=False,
-                      help='Set of tomogram reconstructed from the odd frames of the tilt'
-                           'series movies.')
-        form.addParam('tomo', params.PointerParam,
-                      pointerClass='SetOfTomograms',
-                      condition='not useIndependentOddEven',
-                      label='Tomograms',
-                      important=True,
-                      help='Set of tomograms reconstructed from the even frames of the tilt'
-                           'series movies.')
-
+        super()._defineParams(form)
         form.addSection(label='Config Parameters')
         form.addParam('tilt_axis', EnumParam,
                       label='Tilt axis of the tomograms',
@@ -184,52 +161,16 @@ class ProtCryoCARETraining(EMProtocol):
     def _initialize(self):
         makePath(self._getTrainDataConfDir())
         self._configFile = join(self._getTrainDataConfDir(), TRAIN_DATA_CONFIG)
-    '''
-    def _initializeTraining(self):
-        # The prediction is expecting the training and validation datasets to be in the same place as the training
-        # model, but they are located in the training data generation extra directory. Hence, a symbolic link will
-        # be created for each one
-        makeDatasetSymLinks(self, self._getTrainDataDir())
-    '''
-
-    def prepareTrainingStep(self):
-        config = {
-            'train_data': self._getTrainDataDir(),
-            'epochs': self.epochs.get(),
-            'steps_per_epoch': self.steps_per_epoch.get(),
-            'batch_size': self.batch_size.get(),
-            'unet_kern_size': self.unet_kern_size.get(),
-            'unet_n_depth': self._getUNetDepth(),
-            'unet_n_first': self.unet_n_first.get(),
-            'learning_rate': self.learning_rate.get(),
-            'model_name': CRYOCARE_MODEL,
-            'path': self._getExtraPath()
-        }
-
         self._configPath = self._getExtraPath('train_config.json')
-        with open(self._configPath, 'w+') as f:
-            json.dump(config, f, indent=2)
-
-    def trainingStep(self):
-        Plugin.runCryocare(self, PYTHON, '$(which cryoCARE_train.py) --conf {}'.format(self._configPath),
-                           gpuId=getattr(self, params.GPU_LIST).get())
-    def getOddEvenLists(self):
-        oddList = []
-        evenList = []
-        for t in self.tomo.get():
-            odd, even = t.getHalfMaps().split(',')
-            oddList.append(odd)
-            evenList.append(even)
-        return oddList, evenList
 
     def prepareTrainingDataStep(self):
 
-        if self.useIndependentOddEven.get():
+        if self.areEvenOddLinked.get():
+            fnOdd, fnEven = self.getOddEvenLists()
+        else:
             self._getListOfTomoNames(self.evenTomos.get() )
             fnOdd = self._getListOfTomoNames(self.oddTomos.get())
             fnEven = self._getListOfTomoNames(self.evenTomos.get())
-        else:
-            fnOdd, fnEven = self.getOddEvenLists()
 
         config = {
             'even': fnEven,
@@ -247,27 +188,36 @@ class ProtCryoCARETraining(EMProtocol):
     def runDataExtraction(self):
         Plugin.runCryocare(self, PYTHON, '$(which cryoCARE_extract_train_data.py) --conf %s' % self._configFile)
 
+    def prepareTrainingStep(self):
+        config = {
+            'train_data': self._getTrainDataDir(),
+            'epochs': self.epochs.get(),
+            'steps_per_epoch': self.steps_per_epoch.get(),
+            'batch_size': self.batch_size.get(),
+            'unet_kern_size': self.unet_kern_size.get(),
+            'unet_n_depth': self._getUNetDepth(),
+            'unet_n_first': self.unet_n_first.get(),
+            'learning_rate': self.learning_rate.get(),
+            'model_name': CRYOCARE_MODEL,
+            'path': self._getExtraPath()
+        }
+        with open(self._configPath, 'w+') as f:
+            json.dump(config, f, indent=2)
+
+    def trainingStep(self):
+        Plugin.runCryocare(self, PYTHON, '$(which cryoCARE_train.py) --conf {}'.format(self._configPath),
+                           gpuId=getattr(self, params.GPU_LIST).get())
+
     def createOutputStep(self):
         model = CryocareModel(model_file=getModelName(self),
                               train_data_dir=self._getTrainDataDir())
-        self._defineOutputs(**{outputObjects.model.name: model})
+        self._defineOutputs(**{Outputobjects.model.name: model})
 
-        if self.useIndependentOddEven.get():
+        if self.areEvenOddLinked.get():
+            self._defineSourceRelation(self.tomo.get(), model)
+        else:
             self._defineSourceRelation(self.oddTomos.get(), model)
             self._defineSourceRelation(self.evenTomos.get(), model)
-        else:
-            self._defineSourceRelation(self.tomo.get(), model)
-
-    def _getUNetDepth(self):
-        # Estimate the best net depth value according to the patch size if the user left this field empty
-        if self.unet_n_depth.get() == 0:
-            refValues = [72, 96, 128]  # Corresponds to a net depth of 2, 3 and 4, respectively
-            netDepth = [2, 3, 4]
-            diff = [abs(i - self.patch_shape.get()) for i in refValues]
-            ind, _ = min(enumerate(diff), key=operator.itemgetter(0))
-            return netDepth[ind]
-        else:
-            return self.unet_n_depth.get()
 
     # --------------------------- INFO functions -----------------------------------
     def _summary(self):
@@ -287,7 +237,17 @@ class ProtCryoCARETraining(EMProtocol):
         validateMsgs = []
         sideLength = self.patch_shape.get()
 
-        if self.useIndependentOddEven.get():
+        if self.areEvenOddLinked.get():
+            inputTomo = self.tomo.get()
+            xt, yt, zt = inputTomo.getDimensions()
+            for idim in [xt, yt, zt]:
+                if idim <= 2 * sideLength:
+                    validateMsgs.append('X, Y and Z dimensions of the tomograms introduced must satisfy the '
+                                        'condition\n\n*dimension > 2 x SideLength*\n\n'
+                                        '(X, Y, Z) = (%i, %i, %i)\n'
+                                        'SideLength = %i\n\n' % (xt, yt, zt, sideLength))
+                    break
+        else:
             evenTomos = self.evenTomos.get()
             oddTomos = self.oddTomos.get()
             xe, ye, ze = evenTomos.getDimensions()
@@ -301,16 +261,6 @@ class ProtCryoCARETraining(EMProtocol):
                     msg = checkInputTomoSetsSize(evenTomos, oddTomos)
                     if msg:
                         validateMsgs.append(msg)
-                    break
-        else:
-            inputTomo = self.tomo.get()
-            xt, yt, zt = inputTomo.getDimensions()
-            for idim in [xt, yt, zt]:
-                if idim <= 2 * sideLength:
-                    validateMsgs.append('X, Y and Z dimensions of the tomograms introduced must satisfy the '
-                                        'condition\n\n*dimension > 2 x SideLength*\n\n'
-                                        '(X, Y, Z) = (%i, %i, %i)\n'
-                                        'SideLength = %i\n\n' % (xt, yt, zt, sideLength))
                     break
 
         # Check the patch conditions
@@ -366,3 +316,22 @@ class ProtCryoCARETraining(EMProtocol):
     def _getListOfTomoNames(tomoSet):
         return [tomo.getFileName() for tomo in tomoSet]
 
+    def getOddEvenLists(self):
+        oddList = []
+        evenList = []
+        for t in self.tomo.get():
+            odd, even = t.getHalfMaps().split(',')
+            oddList.append(odd)
+            evenList.append(even)
+        return oddList, evenList
+
+    def _getUNetDepth(self):
+        # Estimate the best net depth value according to the patch size if the user left this field empty
+        if self.unet_n_depth.get() == 0:
+            refValues = [72, 96, 128]  # Corresponds to a net depth of 2, 3 and 4, respectively
+            netDepth = [2, 3, 4]
+            diff = [abs(i - self.patch_shape.get()) for i in refValues]
+            ind, _ = min(enumerate(diff), key=operator.itemgetter(0))
+            return netDepth[ind]
+        else:
+            return self.unet_n_depth.get()
