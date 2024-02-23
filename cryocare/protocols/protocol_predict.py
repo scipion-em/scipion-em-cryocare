@@ -92,7 +92,7 @@ tomograms followed by per-pixel averaging."""
         tomoListEven, tomoListOdd = self._initialize()
         for evenTomo, oddTomo in zip(tomoListEven, tomoListOdd):
             tsId = evenTomo.getTsId()
-            self._insertFunctionStep(self.preparePredictStep, tsId, evenTomo.getFileName(), oddTomo.getFileName())
+            self._insertFunctionStep(self.preparePredictStep, tsId, evenTomo, oddTomo)
             self._insertFunctionStep(self.predictStep, tsId)
             self._insertFunctionStep(self.createOutputStep, evenTomo)
 
@@ -105,9 +105,20 @@ tomograms followed by per-pixel averaging."""
             tomoListEven = []
             tomoListOdd = []
             for tomo in tomoList:
+
                 odd, even = tomo.getHalfMaps().split(',')
-                tomoListEven.append(even)
-                tomoListOdd.append(odd)
+
+                oddTomo = Tomogram()
+                oddTomo.copyInfo(tomo)
+                oddTomo.setLocation(odd)
+
+                evenTomo = Tomogram()
+                evenTomo.copyInfo(tomo)
+                evenTomo.setLocation(even)
+
+                tomoListEven.append(evenTomo)
+                tomoListOdd.append(oddTomo)
+
         else:
             tomoListEven = [tomo.clone() for tomo in self.evenTomos.get()]
             tomoListOdd = [tomo.clone() for tomo in self.oddTomos.get()]
@@ -116,8 +127,8 @@ tomograms followed by per-pixel averaging."""
     def preparePredictStep(self, tsId, evenTomo, oddTomo):
         config = {
             'path': self.model.get().getPath(),
-            'even': evenTomo,
-            'odd': oddTomo,
+            'even': evenTomo.getLocation()[1],
+            'odd': oddTomo.getLocation()[1],
             'n_tiles': [int(i) for i in self.n_tiles.get().split()],
             'output': self._getOutputPath(tsId),
             'overwrite': False
