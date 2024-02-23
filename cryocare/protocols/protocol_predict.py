@@ -92,7 +92,7 @@ tomograms followed by per-pixel averaging."""
         tomoListEven, tomoListOdd = self._initialize()
         for evenTomo, oddTomo in zip(tomoListEven, tomoListOdd):
             tsId = evenTomo.getTsId()
-            self._insertFunctionStep(self.preparePredictStep, tsId, evenTomo, oddTomo)
+            self._insertFunctionStep(self.preparePredictStep, tsId, evenTomo.getFileName(), oddTomo.getFileName())
             self._insertFunctionStep(self.predictStep, tsId)
             self._insertFunctionStep(self.createOutputStep, evenTomo)
 
@@ -124,11 +124,11 @@ tomograms followed by per-pixel averaging."""
             tomoListOdd = [tomo.clone() for tomo in self.oddTomos.get()]
         return tomoListEven, tomoListOdd
 
-    def preparePredictStep(self, tsId, evenTomo, oddTomo):
+    def preparePredictStep(self, tsId, evenTomoPath, oddTomoPath):
         config = {
             'path': self.model.get().getPath(),
-            'even': evenTomo.getLocation()[1],
-            'odd': oddTomo.getLocation()[1],
+            'even': evenTomoPath,
+            'odd': oddTomoPath,
             'n_tiles': [int(i) for i in self.n_tiles.get().split()],
             'output': self._getOutputPath(tsId),
             'overwrite': False
