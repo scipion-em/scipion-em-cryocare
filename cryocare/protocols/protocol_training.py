@@ -205,8 +205,20 @@ class ProtCryoCARETraining(ProtCryoCAREBase):
             json.dump(config, f, indent=2)
 
     def trainingStep(self):
+
+        # We do this to accept both GPU specified as '0' 1 2 3' or '0,1,2,3':
+        gpuId=getattr(self, params.GPU_LIST).get()
+        if ',' not in gpuId:
+            gpuListNew = ''
+            for gpu in gpuId.split(' '):
+                gpuListNew += gpu + ','
+                
+            gpuListNew = gpuListNew[:-1]
+            gpuId = gpuListNew
+
+        # print(gpuId)
         Plugin.runCryocare(self, PYTHON, '$(which cryoCARE_train.py) --conf {}'.format(self._configPath),
-                           gpuId=getattr(self, params.GPU_LIST).get())
+                           gpuId=gpuId)
 
     def createOutputStep(self):
         model = CryocareModel(model_file=getModelName(self),
