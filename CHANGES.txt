@@ -1,3 +1,9 @@
+4.1.0:
+  Users:
+    - Binary version installed is now 0.3.0 (https://github.com/juglab/cryoCARE_pip/releases/tag/v0.3.0)
+    - We now parse GPU IDs to accept both comma-separated and space-separated specification (Thanks,
+      Ricardo Righetto).
+
 4.0.0:
  Users:
   - Prepare data protocol was removed, and now it's a step of the training protocol.

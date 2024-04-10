@@ -16,7 +16,6 @@ from cryocare import Plugin
 from cryocare.constants import TRAIN_DATA_DIR, TRAIN_DATA_FN, TRAIN_DATA_CONFIG, VALIDATION_DATA_FN, CRYOCARE_MODEL
 from cryocare.objects import CryocareModel
 
-
 # Tilt axis values
 X_AXIS = 0
 Y_AXIS = 1
@@ -168,7 +167,7 @@ class ProtCryoCARETraining(ProtCryoCAREBase):
         if self.areEvenOddLinked.get():
             fnOdd, fnEven = self.getOddEvenLists()
         else:
-            self._getListOfTomoNames(self.evenTomos.get() )
+            self._getListOfTomoNames(self.evenTomos.get())
             fnOdd = self._getListOfTomoNames(self.oddTomos.get())
             fnEven = self._getListOfTomoNames(self.evenTomos.get())
 
@@ -205,8 +204,14 @@ class ProtCryoCARETraining(ProtCryoCAREBase):
             json.dump(config, f, indent=2)
 
     def trainingStep(self):
+
+        # We do this to accept both GPU specified as '0' 1 2 3' or '0,1,2,3':
+        gpuId = getattr(self, params.GPU_LIST).getListFromValues()
+        gpuId = ' '.join(map(str, gpuId))
+
+        # print(gpuId)
         Plugin.runCryocare(self, PYTHON, '$(which cryoCARE_train.py) --conf {}'.format(self._configPath),
-                           gpuId=getattr(self, params.GPU_LIST).get())
+                           gpuId=gpuId)
 
     def createOutputStep(self):
         model = CryocareModel(model_file=getModelName(self),
@@ -228,9 +233,9 @@ class ProtCryoCARETraining(ProtCryoCAREBase):
                            "train_data_file = *{}*\n"
                            "validation_data_file = *{}*\n"
                            "patch_size = *{}*".format(
-                            self._getTrainDataFile(),
-                            self._getValidationDataFile(),
-                            self.patch_shape.get()))
+                self._getTrainDataFile(),
+                self._getValidationDataFile(),
+                self.patch_shape.get()))
         return summary
 
     def _validate(self):
