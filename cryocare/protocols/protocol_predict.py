@@ -206,7 +206,7 @@ tomograms followed by per-pixel averaging."""
         return outPathRe.sub('', outPath)
 
     def _getOutputFile(self, tsId):
-        return glob.glob(join(self._getOutputPath(tsId), '*.mrc'))[0]  # Only one file is contained in each dir
+        return glob.glob(join(self._getOutputPath(tsId), '*'))[0]  # Only one file is contained in each dir
 
     def _genOutputTomogram(self, inTomo):
         tomo = Tomogram()
