@@ -69,13 +69,13 @@ class ProtCryoCARETraining(ProtCryoCAREBase):
                            'being a higher patch size required for higher resolution.')
 
         form.addParam('num_slices', IntParam,
-                      label='Number of training pairs to extract',
+                      label='Number of training pairs to extract per tomogram',
                       default=1200,
                       validators=[Positive],
-                      help='Number of sub-volumes to sample from the even and odd tomograms.')
+                      help='Number of sub-volumes to sample from each pair of even and odd tomograms.')
 
         form.addParam('n_normalization_samples', IntParam,
-                      label='No. of subvolumes extracted per tomogram',
+                      label='No. of subvolumes used for normalization per tomogram',
                       default=120,
                       expertLevel=LEVEL_ADVANCED,
                       validators=[Positive],
