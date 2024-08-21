@@ -80,7 +80,7 @@ class ProtCryoCARETraining(ProtCryoCAREBase):
                       expertLevel=LEVEL_ADVANCED,
                       validators=[Positive],
                       help='Number of training pairs which will be used to compute mean and standard deviation '
-                           'for normalization. By default it is the 10% of the number of training pairs.')
+                           'for normalization. By default this is 10% of the number of training pairs.')
 
         form.addParam('split', FloatParam,
                       label='Train-Validation Split',
