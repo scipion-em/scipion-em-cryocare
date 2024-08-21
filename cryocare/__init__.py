@@ -57,7 +57,7 @@ class Plugin(pwem.Plugin):
             # this is required for python virtual env to work
             del environ['PYTHONPATH']
 
-        environ.update({'CUDA_VISIBLE_DEVICES': gpuId})
+        environ.update({'CUDA_VISIBLE_DEVICES': gpuId.replace(' ',',')})
 
         cudaLib = environ.get(CRYOCARE_CUDA_LIB, pwem.Config.CUDA_LIB)
         environ.addLibrary(cudaLib)
