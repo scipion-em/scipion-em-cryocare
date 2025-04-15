@@ -49,7 +49,7 @@ class ProtCryoCARELoadModel(EMProtocol):
 
     def _insertAllSteps(self):
         self._initialize()
-        self._insertFunctionStep(self.createOutputStep)
+        self._insertFunctionStep(self.createOutputStep, needsGPU=False)
 
     def _initialize(self):
         # The prediction is expecting the training and validation datasets to be in the same place as the training

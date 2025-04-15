@@ -50,14 +50,12 @@ class Plugin(pwem.Plugin):
         return cls.getVar(CRYOCARE_ENV_ACTIVATION)
 
     @classmethod
-    def getEnviron(cls, gpuId='0'):
+    def getEnviron(cls):
         """ Setup the environment variables needed to launch cryocare. """
         environ = Environ(os.environ)
         if 'PYTHONPATH' in environ:
             # this is required for python virtual env to work
             del environ['PYTHONPATH']
-
-        environ.update({'CUDA_VISIBLE_DEVICES': gpuId})
 
         cudaLib = environ.get(CRYOCARE_CUDA_LIB, pwem.Config.CUDA_LIB)
         environ.addLibrary(cudaLib)
@@ -110,9 +108,9 @@ class Plugin(pwem.Plugin):
         return neededProgs
 
     @classmethod
-    def runCryocare(cls, protocol, program, args, cwd=None, gpuId='0'):
+    def runCryocare(cls, protocol, program, args, cwd=None):
         """ Run cryoCARE command from a given protocol. """
-        fullProgram = '%s %s && %s' % (cls.getCondaActivationCmd(),
-                                       cls.getCryocareEnvActivation(),
-                                       program)
-        protocol.runJob(fullProgram, args, env=cls.getEnviron(gpuId=gpuId), cwd=cwd, numberOfMpi=1)
+        cmd = cls.getCondaActivationCmd() + " "
+        cmd += cls.getCryocareEnvActivation()
+        cmd += f" && CUDA_VISIBLE_DEVICES=%(GPU)s {program} "
+        protocol.runJob(cmd, args, env=cls.getEnviron(), cwd=cwd, numberOfMpi=1)
