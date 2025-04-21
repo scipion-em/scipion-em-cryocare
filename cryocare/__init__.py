@@ -112,5 +112,6 @@ class Plugin(pwem.Plugin):
         """ Run cryoCARE command from a given protocol. """
         cmd = cls.getCondaActivationCmd() + " "
         cmd += cls.getCryocareEnvActivation()
-        cmd += f" && CUDA_VISIBLE_DEVICES=%(GPU)s {program} "
+        cmd += f" && {program} "
+        # cmd += f" && CUDA_VISIBLE_DEVICES=%(GPU)s {program} "
         protocol.runJob(cmd, args, env=cls.getEnviron(), cwd=cwd, numberOfMpi=1)

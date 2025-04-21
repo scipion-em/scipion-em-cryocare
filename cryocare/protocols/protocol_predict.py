@@ -86,7 +86,8 @@ tomograms followed by per-pixel averaging."""
                       help='Normally the gpu cannot handle the whole size of the tomograms, so it can be split into '
                            'n tiles per axis to process smaller volumes instead of one big at once.')
 
-        form.addHidden(params.GPU_LIST, params.StringParam, default='0',
+        form.addHidden(params.GPU_LIST, params.StringParam,
+                       default='0',
                        expertLevel=params.LEVEL_ADVANCED,
                        label="Choose GPU IDs",
                        help="GPU ID, normally it is 0.")
@@ -115,8 +116,7 @@ tomograms followed by per-pixel averaging."""
         tomoSet = self.tomos.get() if self.areEvenOddLinked.get() else self.evenTomos.get()
         self.sRate = tomoSet.getSamplingRate()
         if self.areEvenOddLinked.get():
-            tomoList = [tomo.clone() for tomo in self.tomos.get()]
-            for tomo in tomoList:
+            for tomo in self.tomos.get():
                 tsId = tomo.getTsId()
                 odd, even = tomo.getHalfMaps().split(',')
 
@@ -132,8 +132,10 @@ tomograms followed by per-pixel averaging."""
                 self.tomoDictOdd[tsId] = oddTomo
 
         else:
-            self.tomoDictEven = {tomo.getTsId(): tomo.clone() for tomo in self.evenTomos.get()}
-            self.tomoDictOdd = {tomo.getTsId(): tomo.clone() for tomo in self.oddTomos.get()}
+            for tomoEven, tomoOdd in zip(self.evenTomos.get(), self.oddTomos.get()):
+                tsId = tomoEven.getTsId()  # Use the same tsId (it may be different for both sets) for both dicts
+                self.tomoDictEven[tsId] = tomoEven.clone()
+                self.tomoDictOdd[tsId] = tomoOdd.clone()
 
     def preparePredictStep(self, tsId: str):
         evenTomo = self.tomoDictEven[tsId]
@@ -162,31 +164,14 @@ tomograms followed by per-pixel averaging."""
         shutil.move(origName, finalNameRe.sub('', origName))
 
     def createOutputStep(self, tsId: str):
-        # with self._lock:
-        # TODO: finish this
-
-
-
-        tomo = self.tomoDictEven[tsId]
-        outputSetOfTomo = getattr(self, Outputobjects.tomograms.name, None)
-        if not outputSetOfTomo:
-            outputSetOfTomo = SetOfTomograms.create(self._getPath(),
-                                                    template='tomograms%s.sqlite',
-                                                    suffix=DENOISED_SUFFIX)
-            if self.areEvenOddLinked.get():
-                outputSetOfTomo.copyInfo(self.tomos.get())
-            else:
-                outputSetOfTomo.copyInfo(self.evenTomos.get())
-        outTomo = self._genOutputTomogram(tomo)
-        outputSetOfTomo.append(outTomo)
-
-        self._defineOutputs(**{Outputobjects.tomograms.name: outputSetOfTomo})
-        if self.areEvenOddLinked.get():
-            self._defineSourceRelation(self.tomos, outputSetOfTomo)
-        else:
-            self._defineSourceRelation(self.evenTomos, outputSetOfTomo)
-            self._defineSourceRelation(self.oddTomos, outputSetOfTomo)
-        self._defineSourceRelation(self.model, outputSetOfTomo)
+        with self._lock:
+            outTomos = self._getOutputSetOfTomograms()
+            inTomo = self.tomoDictEven[tsId]
+            outTomo = self._genOutputTomogram(inTomo)
+            outTomos.append(outTomo)
+            outTomos.update(outTomo)
+            outTomos.write()
+            self._store(outTomos)
 
     # --------------------------- INFO functions -----------------------------------
     def _summary(self):
@@ -231,7 +216,7 @@ tomograms followed by per-pixel averaging."""
     def _getOutputFile(self, tsId):
         return glob.glob(join(self._getOutputPath(tsId), '*.mrc'))[0]  # Only one file is contained in each dir
 
-    def _genOutputTomogram(self, inTomo):
+    def _genOutputTomogram(self, inTomo: Tomogram):
         tomo = Tomogram()
         tomo.copyInfo(inTomo)
         tomo.setLocation(self._getOutputFile(inTomo.getTsId()))
@@ -242,7 +227,8 @@ tomograms followed by per-pixel averaging."""
         if outTomograms:
             outTomograms.enableAppend()
         else:
-            inSetPointer = self.getInTomos(asPointer=True)
+            even = None if self.areEvenOddLinked.get() else True
+            inSetPointer = self.getInTomos(asPointer=True, even=even)
             outTomograms = SetOfTomograms.create(self._getPath(), template='tomograms%s.sqlite')
             outTomograms.copyInfo(inSetPointer.get())
             outTomograms.setStreamState(Set.STREAM_OPEN)
