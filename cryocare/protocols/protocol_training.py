@@ -89,6 +89,12 @@ class ProtCryoCARETraining(ProtCryoCAREBase):
                       expertLevel=LEVEL_ADVANCED,
                       help='Training and validation data split value.')
 
+        form.addParam('gpus', params.StringParam,
+                      default='0',
+                      label="Choose GPU IDs",
+                      help="GPU IDs. The training supports parallelization over multiple GPUs "
+                           "since cryoCARE version 0.3.0")
+
         form.addSection(label='Training Parameters')
         form.addParam('epochs', IntParam,
                       default=100,
@@ -143,11 +149,6 @@ class ProtCryoCARETraining(ProtCryoCAREBase):
                       validators=[GT(0)],
                       expertLevel=LEVEL_ADVANCED,
                       help='Number of initial feature channels.')
-        form.addParam('gpus', params.StringParam,
-                      default='0',
-                      label="Choose GPU IDs",
-                      help="GPU IDs. The training supports parallelization over multiple GPUs "
-                           "since cryoCARE version 0.3.0")
 
     # --------------------------- STEPS functions ------------------------------
     def _insertAllSteps(self):
