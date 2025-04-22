@@ -55,7 +55,7 @@ class ProtCryoCAREBase(EMProtocol):
         # form level. Thus, the tomograms introduced needs to be validated here
         errorMsg = []
         if self.areEvenOddLinked.get():
-            if not self.tomo.get():
+            if not self.tomos.get():
                 errorMsg.append('If the parameter "Are odd-even associated to the Tomograms?" was set to Yes, a set '
                                 'of tomograms with the even/odd sets associated to its metadata must be introduced.')
 
