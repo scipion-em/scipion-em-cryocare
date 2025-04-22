@@ -49,6 +49,12 @@ class ProtCryoCARETraining(ProtCryoCAREBase):
             form: this is the form to be populated with sections and params.
         """
         super()._defineParams(form)
+        form.addParam('gpus', params.StringParam,
+                      default='0',
+                      label="Choose GPU IDs",
+                      help="GPU IDs. The training supports parallelization over multiple GPUs "
+                           "since cryoCARE version 0.3.0")
+
         form.addSection(label='Config Parameters')
         form.addParam('tilt_axis', EnumParam,
                       label='Tilt axis of the tomograms',
@@ -88,12 +94,6 @@ class ProtCryoCARETraining(ProtCryoCAREBase):
                       validators=[GT(0), LT(1)],
                       expertLevel=LEVEL_ADVANCED,
                       help='Training and validation data split value.')
-
-        form.addParam('gpus', params.StringParam,
-                      default='0',
-                      label="Choose GPU IDs",
-                      help="GPU IDs. The training supports parallelization over multiple GPUs "
-                           "since cryoCARE version 0.3.0")
 
         form.addSection(label='Training Parameters')
         form.addParam('epochs', IntParam,
