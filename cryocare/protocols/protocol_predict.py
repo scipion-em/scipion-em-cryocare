@@ -86,6 +86,7 @@ tomograms followed by per-pixel averaging."""
                       help='Normally the gpu cannot handle the whole size of the tomograms, so it can be split into '
                            'n tiles per axis to process smaller volumes instead of one big at once.')
 
+        form.addParallelSection(threads=1, mpi=0)
         form.addHidden(params.GPU_LIST, params.StringParam,
                        default='0',
                        expertLevel=params.LEVEL_ADVANCED,
