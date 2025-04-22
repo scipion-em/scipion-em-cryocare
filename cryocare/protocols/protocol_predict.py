@@ -100,7 +100,7 @@ tomograms followed by per-pixel averaging."""
         for tsId in self.tomoDictEven.keys():
             pPredId = self._insertFunctionStep(self.preparePredictStep, tsId,
                                      prerequisites=[],
-                                     needsGPU=False)
+                                     needsGPU=True)
             predId = self._insertFunctionStep(self.predictStep, tsId,
                                      prerequisites=pPredId,
                                      needsGPU=True)
