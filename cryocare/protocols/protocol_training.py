@@ -242,7 +242,7 @@ class ProtCryoCARETraining(ProtCryoCAREBase):
 
         super()._validate()
         if self.areEvenOddLinked.get():
-            inputTomo = self.tomo.get()
+            inputTomo = self.tomos.get()
             xt, yt, zt = inputTomo.getDimensions()
             for idim in [xt, yt, zt]:
                 if idim <= 2 * sideLength:
@@ -323,7 +323,7 @@ class ProtCryoCARETraining(ProtCryoCAREBase):
     def getOddEvenLists(self):
         oddList = []
         evenList = []
-        for t in self.tomo.get():
+        for t in self.tomos.get():
             odd, even = t.getHalfMaps().split(',')
             oddList.append(odd)
             evenList.append(even)
