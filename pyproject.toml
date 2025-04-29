@@ -31,6 +31,7 @@ Issues = "https://github.com/scipion-em/scipion-em-cryocare/issues"
 
 [tool.setuptools.dynamic]
 version = {attr = "cryocare.__version__"}
+dependencies = {file = ["requirements.txt"]}
 
 [tool.setuptools.package-data]
 "cryocare" = ["protocols.conf", "icon.png", "templates/*"]
