@@ -49,11 +49,11 @@ class ProtCryoCARETraining(ProtCryoCAREBase):
             form: this is the form to be populated with sections and params.
         """
         super()._defineParams(form)
-        form.addParam('gpus', params.StringParam,
-                      default='0',
-                      label="Choose GPU IDs",
-                      help="GPU IDs. The training supports parallelization over multiple GPUs "
-                           "since cryoCARE version 0.3.0")
+        # form.addParam('gpus', params.StringParam,
+        #               default='0',
+        #               label="Choose GPU IDs",
+        #               help="GPU IDs. The training supports parallelization over multiple GPUs "
+        #                    "since cryoCARE version 0.3.0")
 
         form.addSection(label='Config Parameters')
         form.addParam('tilt_axis', EnumParam,
@@ -150,6 +150,12 @@ class ProtCryoCARETraining(ProtCryoCAREBase):
                       expertLevel=LEVEL_ADVANCED,
                       help='Number of initial feature channels.')
 
+        form.addHidden(params.GPU_LIST, params.StringParam,
+                       default='0',
+                       label="Choose GPU IDs",
+                       help="GPU IDs. The training supports parallelization over multiple GPUs "
+                            "since cryoCARE version 0.3.0.")
+
     # --------------------------- STEPS functions ------------------------------
     def _insertAllSteps(self):
         self._initialize()
@@ -190,7 +196,7 @@ class ProtCryoCARETraining(ProtCryoCAREBase):
 
     def prepareTrainingStep(self):
         # We do this to accept both GPU specified as '0' 1 2 3' or '0,1,2,3':
-        gpuId = getattr(self, 'gpus').getListFromValues()
+        gpuId = getattr(self, params.GPU_LIST).getListFromValues()
         gpuId = gpuId[0] if len(gpuId) == 1 else gpuId
         config = {
             'train_data': self._getTrainDataDir(),

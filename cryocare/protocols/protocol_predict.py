@@ -98,11 +98,8 @@ tomograms followed by per-pixel averaging."""
         self._initialize()
         closeSetStepDeps = []
         for tsId in self.tomoDictEven.keys():
-            pPredId = self._insertFunctionStep(self.preparePredictStep, tsId,
-                                     prerequisites=[],
-                                     needsGPU=True)
             predId = self._insertFunctionStep(self.predictStep, tsId,
-                                     prerequisites=pPredId,
+                                     prerequisites=[],
                                      needsGPU=True)
             cOutId = self._insertFunctionStep(self.createOutputStep, tsId,
                                      prerequisites=predId,
@@ -138,25 +135,13 @@ tomograms followed by per-pixel averaging."""
                 self.tomoDictEven[tsId] = tomoEven.clone()
                 self.tomoDictOdd[tsId] = tomoOdd.clone()
 
-    def preparePredictStep(self, tsId: str):
-        evenTomo = self.tomoDictEven[tsId]
-        oddTomo = self.tomoDictOdd[tsId]
-        # We do this to accept both GPU specified as '0' 1 2 3' or '0,1,2,3':
-        gpuId = self._stepsExecutor.getGpuList()
-        gpuId = gpuId[0]
-        config = {
-            'path': self.model.get().getPath(),
-            'even': evenTomo.getFileName(),
-            'odd': oddTomo.getFileName(),
-            'n_tiles': [int(i) for i in self.n_tiles.get().split()],
-            'output': self._getOutputPath(tsId),
-            'overwrite': False,
-            'gpu_id': gpuId
-        }
-        with open(self.getConfigPath(tsId), 'w+') as f:
-            json.dump(config, f, indent=2)
-
     def predictStep(self, tsId):
+        # Generate the config file: it is in this step instead of in a convertInputStep because of the
+        # GPU parallelization from Scipion and the need of declaring that convertInputStep with the
+        # attribute needsGpu = True only to be able to access the gpuId assigned, which may be problematic
+        # in some cases
+        self._genConfigFile(tsId)
+
         # Run cryoCARE
         Plugin.runCryocare(self, PYTHON, '$(which cryoCARE_predict.py) --conf %s' % self.getConfigPath(tsId))
         # Remove even/odd words from the output name to avoid confusion
@@ -175,7 +160,7 @@ tomograms followed by per-pixel averaging."""
             self._store(outTomos)
 
     # --------------------------- INFO functions -----------------------------------
-    def _summary(self):
+    def _summary(self) -> list:
         """ Summarize what the protocol has done"""
         summary = []
 
@@ -183,7 +168,7 @@ tomograms followed by per-pixel averaging."""
             summary.append("Tomogram denoising finished.")
         return summary
 
-    def _validate(self):
+    def _validate(self) -> list:
         validateMsgs = []
         super()._validate()
         # Check the sampling rate
@@ -200,13 +185,31 @@ tomograms followed by per-pixel averaging."""
         return validateMsgs
 
     # --------------------------- UTIL functions -----------------------------------
-    def _getPredictConfDir(self):
+    def _genConfigFile(self, tsId: str) -> None:
+        evenTomo = self.tomoDictEven[tsId]
+        oddTomo = self.tomoDictOdd[tsId]
+        # We do this to accept both GPU specified as '0' 1 2 3' or '0,1,2,3':
+        gpuId = self._stepsExecutor.getGpuList()
+        gpuId = gpuId[0]
+        config = {
+            'path': self.model.get().getPath(),
+            'even': evenTomo.getFileName(),
+            'odd': oddTomo.getFileName(),
+            'n_tiles': [int(i) for i in self.n_tiles.get().split()],
+            'output': self._getOutputPath(tsId),
+            'overwrite': False,
+            'gpu_id': gpuId
+        }
+        with open(self.getConfigPath(tsId), 'w+') as f:
+            json.dump(config, f, indent=2)
+
+    def _getPredictConfDir(self) -> str:
         return self._getExtraPath(PREDICT_CONFIG)
 
-    def getConfigPath(self, tsId):
+    def getConfigPath(self, tsId) -> str:
         return join(self._getPredictConfDir(), '%s_%s.json' % (PREDICT_CONFIG, tsId))
 
-    def _getOutputPath(self, tsId):
+    def _getOutputPath(self, tsId) -> str:
         """cryoCARE will generate a new folder for each tomogram denoised. Apart from that, if the
         tomograms were imported, the 'Even_' word can be included in the tsId, as in that case it will be
         the filename. To avoid confusion, it's removed from the generated folder name."""
@@ -214,10 +217,10 @@ tomograms followed by per-pixel averaging."""
         outPathRe = re.compile(re.escape(EVEN), re.IGNORECASE)  # Used to carry out a case-insensitive replacement
         return outPathRe.sub('', outPath)
 
-    def _getOutputFile(self, tsId):
+    def _getOutputFile(self, tsId) -> str:
         return glob.glob(join(self._getOutputPath(tsId), '*'))[0]  # Only one file is contained in each dir
 
-    def _genOutputTomogram(self, inTomo: Tomogram):
+    def _genOutputTomogram(self, inTomo: Tomogram) -> Tomogram:
         tomo = Tomogram()
         tomo.copyInfo(inTomo)
         tomo.setLocation(self._getOutputFile(inTomo.getTsId()))
