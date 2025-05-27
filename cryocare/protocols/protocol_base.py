@@ -1,8 +1,16 @@
+from typing import Union
+
 from pwem.protocols import EMProtocol
 from pyworkflow import BETA
+from pyworkflow.object import Pointer
 from pyworkflow.protocol import params
 from pyworkflow.utils import Message
+from tomo.objects import SetOfTomograms
 
+# Inputs
+IN_TOMOS = 'tomos'
+IN_EVEN_TOMOS = 'evenTomos'
+IN_ODD_TOMOS = 'oddTomos'
 
 class ProtCryoCAREBase(EMProtocol):
     _devStatus = BETA
@@ -19,7 +27,7 @@ class ProtCryoCAREBase(EMProtocol):
         form.addParam('areEvenOddLinked', params.BooleanParam,
                       default=False,
                       label="Are odd-even associated to the Tomograms?")
-        form.addParam('evenTomos', params.PointerParam,
+        form.addParam(IN_EVEN_TOMOS, params.PointerParam,
                       pointerClass='SetOfTomograms',
                       condition='not areEvenOddLinked',
                       label='Even tomograms',
@@ -27,7 +35,7 @@ class ProtCryoCAREBase(EMProtocol):
                       important=True,
                       help='Set of tomograms reconstructed from the even frames of the tilt'
                            'series movies.')
-        form.addParam('oddTomos', params.PointerParam,
+        form.addParam(IN_ODD_TOMOS, params.PointerParam,
                       pointerClass='SetOfTomograms',
                       condition='not areEvenOddLinked',
                       label='Odd tomograms',
@@ -35,7 +43,7 @@ class ProtCryoCAREBase(EMProtocol):
                       important=True,
                       help='Set of tomogram reconstructed from the odd frames of the tilt'
                            'series movies.')
-        form.addParam('tomo', params.PointerParam,
+        form.addParam(IN_TOMOS, params.PointerParam,
                       pointerClass='SetOfTomograms',
                       condition='areEvenOddLinked',
                       label='Tomograms',
@@ -47,7 +55,7 @@ class ProtCryoCAREBase(EMProtocol):
         # form level. Thus, the tomograms introduced needs to be validated here
         errorMsg = []
         if self.areEvenOddLinked.get():
-            if not self.tomo.get():
+            if not self.tomos.get():
                 errorMsg.append('If the parameter "Are odd-even associated to the Tomograms?" was set to Yes, a set '
                                 'of tomograms with the even/odd sets associated to its metadata must be introduced.')
 
@@ -56,3 +64,17 @@ class ProtCryoCAREBase(EMProtocol):
                 errorMsg.append('If the parameter "Are odd-even associated to the Tomograms?" was set to No, a set '
                                 'of even tomograms and a set of odd tomograms must be introduced.')
         return errorMsg
+
+    # --------------------------- UTIL functions -----------------------------------
+    def getInTomos(self,
+                   even: Union[None, bool] = None,
+                   asPointer: bool = True) -> Union[Pointer, SetOfTomograms]:
+        if even is None:
+            attribName = IN_TOMOS
+        else:
+            if even:
+                attribName = IN_EVEN_TOMOS
+            else:
+                attribName = IN_ODD_TOMOS
+        resPointer = getattr(self, attribName)
+        return resPointer if asPointer else resPointer.get()
