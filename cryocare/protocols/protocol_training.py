@@ -49,6 +49,12 @@ class ProtCryoCARETraining(ProtCryoCAREBase):
             form: this is the form to be populated with sections and params.
         """
         super()._defineParams(form)
+        # form.addParam('gpus', params.StringParam,
+        #               default='0',
+        #               label="Choose GPU IDs",
+        #               help="GPU IDs. The training supports parallelization over multiple GPUs "
+        #                    "since cryoCARE version 0.3.0")
+
         form.addSection(label='Config Parameters')
         form.addParam('tilt_axis', EnumParam,
                       label='Tilt axis of the tomograms',
@@ -143,19 +149,21 @@ class ProtCryoCARETraining(ProtCryoCAREBase):
                       validators=[GT(0)],
                       expertLevel=LEVEL_ADVANCED,
                       help='Number of initial feature channels.')
-        form.addHidden(params.GPU_LIST, params.StringParam, default='0',
-                       expertLevel=params.LEVEL_ADVANCED,
+
+        form.addHidden(params.GPU_LIST, params.StringParam,
+                       default='0',
                        label="Choose GPU IDs",
-                       help="GPU ID, normally it is 0.")
+                       help="GPU IDs. The training supports parallelization over multiple GPUs "
+                            "since cryoCARE version 0.3.0.")
 
     # --------------------------- STEPS functions ------------------------------
     def _insertAllSteps(self):
         self._initialize()
-        self._insertFunctionStep(self.prepareTrainingDataStep)
-        self._insertFunctionStep(self.runDataExtraction)
-        self._insertFunctionStep(self.prepareTrainingStep)
-        self._insertFunctionStep(self.trainingStep)
-        self._insertFunctionStep(self.createOutputStep)
+        self._insertFunctionStep(self.prepareTrainingDataStep, needsGPU=False)
+        self._insertFunctionStep(self.runDataExtraction, needsGPU=False)
+        self._insertFunctionStep(self.prepareTrainingStep, needsGPU=False)
+        self._insertFunctionStep(self.trainingStep, needsGPU=True)
+        self._insertFunctionStep(self.createOutputStep, needsGPU=False)
 
     def _initialize(self):
         makePath(self._getTrainDataConfDir())
@@ -163,7 +171,6 @@ class ProtCryoCARETraining(ProtCryoCAREBase):
         self._configPath = self._getExtraPath('train_config.json')
 
     def prepareTrainingDataStep(self):
-
         if self.areEvenOddLinked.get():
             fnOdd, fnEven = self.getOddEvenLists()
         else:
@@ -188,6 +195,9 @@ class ProtCryoCARETraining(ProtCryoCAREBase):
         Plugin.runCryocare(self, PYTHON, '$(which cryoCARE_extract_train_data.py) --conf %s' % self._configFile)
 
     def prepareTrainingStep(self):
+        # We do this to accept both GPU specified as '0' 1 2 3' or '0,1,2,3':
+        gpuId = getattr(self, params.GPU_LIST).getListFromValues()
+        gpuId = gpuId[0] if len(gpuId) == 1 else gpuId
         config = {
             'train_data': self._getTrainDataDir(),
             'epochs': self.epochs.get(),
@@ -198,20 +208,14 @@ class ProtCryoCARETraining(ProtCryoCAREBase):
             'unet_n_first': self.unet_n_first.get(),
             'learning_rate': self.learning_rate.get(),
             'model_name': CRYOCARE_MODEL,
-            'path': self._getExtraPath()
+            'path': self._getExtraPath(),
+            'gpu_id': gpuId
         }
         with open(self._configPath, 'w+') as f:
             json.dump(config, f, indent=2)
 
     def trainingStep(self):
-
-        # We do this to accept both GPU specified as '0' 1 2 3' or '0,1,2,3':
-        gpuId = getattr(self, params.GPU_LIST).getListFromValues()
-        gpuId = ' '.join(map(str, gpuId))
-
-        # print(gpuId)
-        Plugin.runCryocare(self, PYTHON, '$(which cryoCARE_train.py) --conf {}'.format(self._configPath),
-                           gpuId=gpuId)
+        Plugin.runCryocare(self, PYTHON, '$(which cryoCARE_train.py) --conf {}'.format(self._configPath))
 
     def createOutputStep(self):
         model = CryocareModel(model_file=getModelName(self),
@@ -219,10 +223,10 @@ class ProtCryoCARETraining(ProtCryoCAREBase):
         self._defineOutputs(**{Outputobjects.model.name: model})
 
         if self.areEvenOddLinked.get():
-            self._defineSourceRelation(self.tomo.get(), model)
+            self._defineSourceRelation(self.tomos, model)
         else:
-            self._defineSourceRelation(self.oddTomos.get(), model)
-            self._defineSourceRelation(self.evenTomos.get(), model)
+            self._defineSourceRelation(self.oddTomos, model)
+            self._defineSourceRelation(self.evenTomos, model)
 
     # --------------------------- INFO functions -----------------------------------
     def _summary(self):
@@ -242,8 +246,9 @@ class ProtCryoCARETraining(ProtCryoCAREBase):
         validateMsgs = []
         sideLength = self.patch_shape.get()
 
+        super()._validate()
         if self.areEvenOddLinked.get():
-            inputTomo = self.tomo.get()
+            inputTomo = self.tomos.get()
             xt, yt, zt = inputTomo.getDimensions()
             for idim in [xt, yt, zt]:
                 if idim <= 2 * sideLength:
@@ -324,7 +329,7 @@ class ProtCryoCARETraining(ProtCryoCAREBase):
     def getOddEvenLists(self):
         oddList = []
         evenList = []
-        for t in self.tomo.get():
+        for t in self.tomos.get():
             odd, even = t.getHalfMaps().split(',')
             oddList.append(odd)
             evenList.append(even)
