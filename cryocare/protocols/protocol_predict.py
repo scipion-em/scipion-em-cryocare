@@ -36,7 +36,6 @@ from pyworkflow import BETA
 from pyworkflow.object import Set
 from pyworkflow.protocol import params, StringParam, STEPS_PARALLEL
 from pyworkflow.utils import makePath
-from scipion.constants import PYTHON
 from cryocare import Plugin
 from tomo.objects import Tomogram, SetOfTomograms
 from cryocare.constants import PREDICT_CONFIG
@@ -143,7 +142,7 @@ tomograms followed by per-pixel averaging."""
         self._genConfigFile(tsId)
 
         # Run cryoCARE
-        Plugin.runCryocare(self, PYTHON, '$(which cryoCARE_predict.py) --conf %s' % self.getConfigPath(tsId))
+        Plugin.runCryocare(self, 'cryoCARE_predict.py','--conf %s' % self.getConfigPath(tsId))
         # Remove even/odd words from the output name to avoid confusion
         origName = self._getOutputFile(tsId)
         finalNameRe = re.compile(re.escape(EVEN), re.IGNORECASE)  # Used to do a case-insensitive replacement
