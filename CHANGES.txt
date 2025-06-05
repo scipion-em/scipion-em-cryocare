@@ -1,3 +1,4 @@
+4.2.1: Avoiding "which" when launching cryocare commands
 4.2.0:
   Users:
    - Training protocol admits multiple GPUs.

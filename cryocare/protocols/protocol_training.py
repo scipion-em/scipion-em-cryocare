@@ -10,7 +10,6 @@ from cryocare.utils import checkInputTomoSetsSize, getModelName
 from pyworkflow import BETA
 from pyworkflow.protocol import params, IntParam, FloatParam, Positive, LT, GT, GE, LEVEL_ADVANCED, EnumParam
 from pyworkflow.utils import makePath, moveFile
-from scipion.constants import PYTHON
 
 from cryocare import Plugin
 from cryocare.constants import TRAIN_DATA_DIR, TRAIN_DATA_FN, TRAIN_DATA_CONFIG, VALIDATION_DATA_FN, CRYOCARE_MODEL
@@ -192,7 +191,7 @@ class ProtCryoCARETraining(ProtCryoCAREBase):
             json.dump(config, f, indent=2)
 
     def runDataExtraction(self):
-        Plugin.runCryocare(self, PYTHON, '$(which cryoCARE_extract_train_data.py) --conf %s' % self._configFile)
+        Plugin.runCryocare(self, 'cryoCARE_extract_train_data.py', '--conf %s' % self._configFile)
 
     def prepareTrainingStep(self):
         # We do this to accept both GPU specified as '0' 1 2 3' or '0,1,2,3':
@@ -215,7 +214,7 @@ class ProtCryoCARETraining(ProtCryoCAREBase):
             json.dump(config, f, indent=2)
 
     def trainingStep(self):
-        Plugin.runCryocare(self, PYTHON, '$(which cryoCARE_train.py) --conf {}'.format(self._configPath))
+        Plugin.runCryocare(self, 'cryoCARE_train.py', '--conf {}'.format(self._configPath))
 
     def createOutputStep(self):
         model = CryocareModel(model_file=getModelName(self),
