@@ -242,20 +242,25 @@ class ProtCryoCARETraining(ProtCryoCAREBase):
         return summary
 
     def _validate(self):
-        validateMsgs = []
         sideLength = self.patch_shape.get()
-
-        super()._validate()
+        validateMsgs = super()._validate()
         if self.areEvenOddLinked.get():
             inputTomo = self.tomos.get()
-            xt, yt, zt = inputTomo.getDimensions()
-            for idim in [xt, yt, zt]:
-                if idim <= 2 * sideLength:
-                    validateMsgs.append('X, Y and Z dimensions of the tomograms introduced must satisfy the '
-                                        'condition\n\n*dimension > 2 x SideLength*\n\n'
-                                        '(X, Y, Z) = (%i, %i, %i)\n'
-                                        'SideLength = %i\n\n' % (xt, yt, zt, sideLength))
-                    break
+            if self.tomos.get():
+                try:
+                    fnOdd, fnEven = self.getOddEvenLists()
+                except Exception as e:
+                    validateMsgs.append('Even/Odd tomograms seem no to be linked to the introduced tomograms '
+                                        'at metadata level.')
+
+                xt, yt, zt = inputTomo.getDimensions()
+                for idim in [xt, yt, zt]:
+                    if idim <= 2 * sideLength:
+                        validateMsgs.append('X, Y and Z dimensions of the tomograms introduced must satisfy the '
+                                            'condition\n\n*dimension > 2 x SideLength*\n\n'
+                                            '(X, Y, Z) = (%i, %i, %i)\n'
+                                            'SideLength = %i\n\n' % (xt, yt, zt, sideLength))
+                        break
         else:
             evenTomos = self.evenTomos.get()
             oddTomos = self.oddTomos.get()
