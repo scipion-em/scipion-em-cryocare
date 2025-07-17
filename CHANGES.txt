@@ -1,3 +1,4 @@
+4.2.3: Predict protocol: add fail tolerance, loggers and improve the summary.
 4.2.2: Add extra validation to the training protocol.
 4.2.1: Avoiding "which" when launching cryocare commands
 4.2.0:

@@ -25,20 +25,22 @@
 # **************************************************************************
 import glob
 import json
+import logging
 import re
 import shutil
 from enum import Enum
 from os.path import join
-
 from cryocare.protocols.protocol_base import ProtCryoCAREBase
 from cryocare.utils import checkInputTomoSetsSize
 from pyworkflow import BETA
 from pyworkflow.object import Set
 from pyworkflow.protocol import params, StringParam, STEPS_PARALLEL
-from pyworkflow.utils import makePath
+from pyworkflow.utils import makePath, cyanStr, redStr
 from cryocare import Plugin
 from tomo.objects import Tomogram, SetOfTomograms
 from cryocare.constants import PREDICT_CONFIG
+
+logger = logging.getLogger(__name__)
 
 DENOISED_SUFFIX = 'denoised'
 EVEN = 'even'
@@ -62,6 +64,7 @@ tomograms followed by per-pixel averaging."""
         self.sRate = None
         self.tomoDictEven = {}
         self.tomoDictOdd = {}
+        self.failedTsIds = []
 
     # -------------------------- DEFINE param functions ----------------------
     def _defineParams(self, form):
@@ -104,7 +107,7 @@ tomograms followed by per-pixel averaging."""
                                      prerequisites=predId,
                                      needsGPU=False)
             closeSetStepDeps.append(cOutId)
-        self._insertFunctionStep(self._closeOutputSet,
+        self._insertFunctionStep(self.closeOutputSetStep,
                                  prerequisites=closeSetStepDeps,
                                  needsGPU=False)
 
@@ -135,28 +138,42 @@ tomograms followed by per-pixel averaging."""
                 self.tomoDictOdd[tsId] = tomoOdd.clone()
 
     def predictStep(self, tsId):
+        logger.info(cyanStr(f'tsId = {tsId} - predicting...'))
         # Generate the config file: it is in this step instead of in a convertInputStep because of the
         # GPU parallelization from Scipion and the need of declaring that convertInputStep with the
         # attribute needsGpu = True only to be able to access the gpuId assigned, which may be problematic
         # in some cases
-        self._genConfigFile(tsId)
+        try:
+            self._genConfigFile(tsId)
 
-        # Run cryoCARE
-        Plugin.runCryocare(self, 'cryoCARE_predict.py','--conf %s' % self.getConfigPath(tsId))
-        # Remove even/odd words from the output name to avoid confusion
-        origName = self._getOutputFile(tsId)
-        finalNameRe = re.compile(re.escape(EVEN), re.IGNORECASE)  # Used to do a case-insensitive replacement
-        shutil.move(origName, finalNameRe.sub('', origName))
+            # Run cryoCARE
+            Plugin.runCryocare(self, 'cryoCARE_predict.py','--conf %s' % self.getConfigPath(tsId))
+            # Remove even/odd words from the output name to avoid confusion
+            origName = self._getOutputFile(tsId)
+            finalNameRe = re.compile(re.escape(EVEN), re.IGNORECASE)  # Used to do a case-insensitive replacement
+            shutil.move(origName, finalNameRe.sub('', origName))
+        except Exception as e:
+            self.failedTsIds.append(tsId)
+            logger.error(redStr(f'tsId = {tsId} - failed with exception {e}'))
 
     def createOutputStep(self, tsId: str):
-        with self._lock:
-            outTomos = self._getOutputSetOfTomograms()
-            inTomo = self.tomoDictEven[tsId]
-            outTomo = self._genOutputTomogram(inTomo)
-            outTomos.append(outTomo)
-            outTomos.update(outTomo)
-            outTomos.write()
-            self._store(outTomos)
+        if tsId not in self.failedTsIds:
+            logger.info(cyanStr(f'tsId = {tsId} - registering the output...'))
+            with self._lock:
+                outTomos = self._getOutputSetOfTomograms()
+                inTomo = self.tomoDictEven[tsId]
+                outTomo = self._genOutputTomogram(inTomo)
+                outTomos.append(outTomo)
+                outTomos.update(outTomo)
+                outTomos.write()
+                self._store(outTomos)
+
+    def closeOutputSetStep(self):
+        outTomos = getattr(self, self._possibleOutputs.tomograms.name, None)
+        if not outTomos:
+            raise Exception('No tomogram was predicted. Please '
+                            'check the Output Log > run.stdout and run.stderr')
+        self._closeOutputSet()
 
     # --------------------------- INFO functions -----------------------------------
     def _summary(self) -> list:
@@ -165,6 +182,13 @@ tomograms followed by per-pixel averaging."""
 
         if self.isFinished():
             summary.append("Tomogram denoising finished.")
+            inTomoSet = self.tomos.get() if self.areEvenOddLinked.get() else self.evenTomos.get()
+            outTomoSet = getattr(self, self._possibleOutputs.tomograms.name, None)
+            if len(outTomoSet) != len(inTomoSet):
+                inTomosTsIds = inTomoSet.getTSIds()
+                outTomoTsIds = outTomoSet.getTSIds()
+                nonMatchingTsIds = inTomosTsIds ^ outTomoTsIds
+                summary.append(f'*Some tomograms failed: {nonMatchingTsIds}*')
         return summary
 
     def _validate(self) -> list:
