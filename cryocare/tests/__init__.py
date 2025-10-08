@@ -43,7 +43,7 @@ class DataSetCryoCARE(Enum):
     training_data_conf_dir = 'Training_Data_Config'
     training_data_conf = 'Training_Data_Config/training_data_config'
     training_data_model = CRYOCARE_MODEL_TGZ
-    sRate = 4.71
+    sRate = 12
     tomoDimensions = [618, 639, 104]
     tomoSetSize = 1
 
