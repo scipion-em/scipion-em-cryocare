@@ -118,7 +118,7 @@ tomograms followed by per-pixel averaging."""
         if self.areEvenOddLinked.get():
             for tomo in self.tomos.get():
                 tsId = tomo.getTsId()
-                odd, even = tomo.getHalfMaps().split(',')
+                even, odd = sorted(tomo.getHalfMaps(asList=True))
 
                 oddTomo = Tomogram()
                 oddTomo.copyInfo(tomo)

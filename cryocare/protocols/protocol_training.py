@@ -334,7 +334,7 @@ class ProtCryoCARETraining(ProtCryoCAREBase):
         oddList = []
         evenList = []
         for t in self.tomos.get():
-            odd, even = t.getHalfMaps().split(',')
+            even, odd = sorted(t.getHalfMaps(asList=True))
             oddList.append(odd)
             evenList.append(even)
         return oddList, evenList
