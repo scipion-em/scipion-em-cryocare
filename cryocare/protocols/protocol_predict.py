@@ -187,7 +187,7 @@ tomograms followed by per-pixel averaging."""
             if len(outTomoSet) != len(inTomoSet):
                 inTomosTsIds = inTomoSet.getTSIds()
                 outTomoTsIds = outTomoSet.getTSIds()
-                nonMatchingTsIds = inTomosTsIds ^ outTomoTsIds
+                nonMatchingTsIds = set(inTomosTsIds) ^ set(outTomoTsIds)
                 summary.append(f'*Some tomograms failed: {nonMatchingTsIds}*')
         return summary
 
