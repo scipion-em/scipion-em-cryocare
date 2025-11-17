@@ -63,6 +63,7 @@ class TestCryoCARE(TestBaseCentralizedLayer):
         print(magentaStr("\n==> Training"))
         patchSize = 40
         protTraining = self.newProtocol(ProtCryoCARETraining,
+                                        areEvenOddLinked=False,
                                         evenTomos=evenTomos,
                                         oddTomos=oddTomos,
                                         patch_shape=patchSize,
@@ -100,6 +101,7 @@ class TestCryoCARE(TestBaseCentralizedLayer):
 
         # Predict
         protPredict = self.newProtocol(ProtCryoCAREPrediction,
+                                       areEvenOddLinked=False,
                                        evenTomos=evenTomos,
                                        oddTomos=oddTomos,
                                        model=model)
