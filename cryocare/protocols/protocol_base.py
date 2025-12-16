@@ -25,7 +25,7 @@ class ProtCryoCAREBase(EMProtocol):
         # You need a params to belong to a section:
         form.addSection(label=Message.LABEL_INPUT)
         form.addParam('areEvenOddLinked', params.BooleanParam,
-                      default=False,
+                      default=True,
                       label="Are odd-even associated to the Tomograms?")
         form.addParam(IN_EVEN_TOMOS, params.PointerParam,
                       pointerClass='SetOfTomograms',
