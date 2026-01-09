@@ -1,1 +1,3 @@
-scipion-em-tomo
+scipion-pyworkflow @ git+https://github.com/scipion-em/scipion-pyworkflow.git@v3.11.3
+scipion-em-tomo @ git+https://github.com/scipion-em/scipion-em-tomo.git@v3.11.2
+
