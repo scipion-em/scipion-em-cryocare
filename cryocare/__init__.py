@@ -26,6 +26,8 @@
 
 import pwem
 import os
+
+from pyworkflow import TOMO
 from pyworkflow.utils import Environ
 from cryocare.constants import CRYOCARE_ENV_ACTIVATION, DEFAULT_ACTIVATION_CMD, CRYOCARE_ENV_NAME, \
     CRYOCARE_DEFAULT_VERSION, CRYOCARE_HOME, CRYOCARE_CUDA_LIB, CRYOCARE
@@ -38,6 +40,7 @@ __version__ = "4.2.3"
 class Plugin(pwem.Plugin):
     _homeVar = CRYOCARE_HOME
     _url = 'https://github.com/scipion-em/scipion-em-cryocare'
+    _processingField = [TOMO]
 
     @classmethod
     def _defineVariables(cls):
