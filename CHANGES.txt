@@ -1,3 +1,4 @@
+4.2.4: deploy test
 4.2.3: Predict protocol:
     - Add fail tolerance, loggers and improve the summary.
     - Default input expects now the odd/even tomograms linked to the tomogram object.
