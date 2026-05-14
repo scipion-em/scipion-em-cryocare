@@ -29,7 +29,153 @@ class Outputobjects(Enum):
 
 
 class ProtCryoCARETraining(ProtCryoCAREBase):
-    """Operate the data to make it be expressed as expected by cryoCARE net."""
+    """
+    Prepares and trains a cryoCARE denoising model for cryo-electron tomography by using paired even and odd tomograms.
+    The protocol generates training and validation datasets, configures the neural network training process, and produces
+    a trained model that can later be applied to restore tomographic data with reduced noise and improved interpretability.
+
+    AI Generated:
+
+    CryoCARE Training (ProtCryoCARETraining) — User Manual
+        Overview
+
+        The CryoCARE Training protocol is designed to generate and train a deep learning model specialized in denoising
+        cryo-electron tomography data. Its purpose is to learn the statistical relationship between paired tomograms
+        reconstructed from independent subsets of the same acquisition, commonly referred to as even and odd tomograms.
+        By learning from these paired datasets, the protocol produces a neural network model capable of reducing noise
+        while preserving biologically meaningful structural information.
+
+        In cryo-electron tomography workflows, denoising is often essential because tomograms are inherently noisy due
+        to low electron dose limitations. Improved signal quality can substantially enhance visualization, segmentation,
+        particle picking, subtomogram averaging, and interpretation of macromolecular organization inside cells or
+        purified samples.
+
+        Inputs and Dataset Preparation
+
+        The protocol requires paired tomographic datasets that represent statistically independent reconstructions of
+        the same specimen regions. These pairs may already be linked internally or may be provided separately as even
+        and odd tomogram collections. Proper pairing is critical because the neural network learns to distinguish
+        reproducible structural information from random noise.
+
+        During preparation, the tomograms are divided into many smaller three-dimensional subvolumes used for training
+        and validation. These subvolumes are extracted across the tomographic volume to expose the network to a broad
+        range of structural patterns and noise conditions. The number of extracted samples strongly influences training
+        quality. Larger datasets generally improve robustness but also increase computational requirements and execution
+        time.
+
+        The protocol also computes normalization statistics from representative subvolumes. This normalization step is
+        biologically important because it standardizes signal intensity distributions across tomograms and stabilizes
+        neural network optimization. Poor normalization may reduce convergence quality or generate inconsistent denoising
+        performance.
+
+        Patch Size and Biological Interpretation
+
+        One of the most important parameters is the training patch size, which determines the dimensions of the
+        extracted subvolumes used during learning. Small patches are computationally efficient and suitable for local
+        structural features, while larger patches allow the network to capture broader contextual information such as
+        membrane continuity, organelle organization, or large macromolecular assemblies.
+
+        In practice, the optimal patch size depends on voxel size, tomogram dimensions, and the biological scale of the
+        structures of interest. High-resolution datasets or large cellular features often benefit from larger patches,
+        although these require more memory and deeper neural network architectures. The tomograms must always be
+        sufficiently larger than the chosen patch size to ensure meaningful extraction of training regions.
+
+        Train and Validation Splitting
+
+        The protocol separates the extracted data into training and validation subsets. The training subset is used for
+        optimization of the neural network parameters, while the validation subset monitors generalization performance
+        and helps detect overfitting.
+
+        For most biological datasets, allocating the majority of samples to training while reserving a smaller fraction
+        for validation provides a good balance. If the validation fraction is too small, model evaluation may become
+        unreliable. Conversely, allocating too much data to validation may unnecessarily reduce training diversity.
+
+        Tilt Axis Considerations
+
+        The protocol allows the user to define the tomographic tilt axis used during extraction. This choice affects how
+        training subvolumes are sampled and may influence the representation of anisotropic noise patterns introduced by
+        tomographic reconstruction. Correct specification of the tilt axis is particularly important in datasets with
+        pronounced missing wedge artifacts or directional reconstruction distortions.
+
+        Training Parameters and Neural Network Optimization
+
+        Training proceeds iteratively through multiple epochs. Each epoch corresponds to one full pass through the
+        training dataset, allowing the network to progressively refine its denoising behavior. Increasing the number of
+        epochs generally improves learning until convergence is reached, although excessive training may lead to
+        overfitting.
+
+        The number of optimization steps per epoch controls how many parameter updates are performed during each cycle.
+        Larger values increase training intensity but also extend runtime. Batch size determines how many subvolumes are
+        processed simultaneously during optimization. Large batch sizes may stabilize learning but require greater GPU
+        memory resources.
+
+        The learning rate is one of the most sensitive parameters in the protocol. Excessively large values may cause
+        unstable optimization and poor convergence, whereas overly small values can dramatically slow training or
+        prevent meaningful learning. For most cryo-electron tomography datasets, moderate default values provide a good
+        starting point.
+
+        U-Net Architecture and Feature Representation
+
+        The denoising model is based on a U-Net architecture, which is widely used in biomedical image analysis because
+        of its ability to combine local feature extraction with multiscale contextual understanding. The protocol allows
+        adjustment of the convolution kernel size, network depth, and number of initial feature channels.
+
+        Increasing network depth enables the model to capture larger contextual relationships and more complex
+        structural patterns. This may improve denoising performance for large cellular datasets or highly heterogeneous
+        specimens, although deeper networks require additional computational resources and larger training datasets.
+
+        The number of feature channels controls the representational capacity of the network. Larger values may improve
+        model expressiveness but also increase memory usage and training time. The protocol can automatically estimate a
+        suitable network depth from the selected patch size, helping users obtain stable training configurations without
+        extensive manual optimization.
+
+        GPU Usage and Computational Requirements
+
+        Training is computationally intensive and typically requires GPU acceleration for practical runtimes. The
+        protocol supports execution on one or multiple GPUs, enabling efficient processing of large cryo-electron
+        tomography datasets. Multi-GPU execution is especially beneficial when using large patch sizes, deep networks,
+        or extensive training datasets.
+
+        Biological users should be aware that larger and more complex models may improve denoising quality but also
+        substantially increase hardware requirements and execution time.
+
+        Outputs and Their Interpretation
+
+        The primary output of the protocol is a trained cryoCARE denoising model. This model encapsulates the learned
+        relationship between noisy tomograms and their underlying reproducible structural information. The model can be
+        applied later to denoise additional tomograms acquired under similar imaging and reconstruction conditions.
+
+        The protocol also generates organized training and validation datasets that document the extracted subvolumes
+        used during optimization. These outputs are useful for reproducibility, quality control, and advanced workflow
+        customization.
+
+        From a biological perspective, denoised tomograms often provide improved visibility of membranes,
+        macromolecular complexes, cytoskeletal structures, and intracellular organization. However, denoised data
+        should always be interpreted carefully and ideally compared against the original tomograms to avoid
+        overinterpretation of subtle features.
+
+        Practical Recommendations
+
+        For most workflows, it is advisable to begin with moderate patch sizes and default network settings. If the
+        denoising quality is insufficient, increasing patch size or network depth may improve contextual understanding,
+        especially for complex cellular environments.
+
+        Careful inspection of even and odd tomogram pairing is essential before training. Incorrect pairing or
+        mismatched datasets can severely degrade model quality. Users should also verify that tomogram dimensions are
+        large enough relative to the chosen patch size.
+
+        When computational resources are limited, reducing batch size or training depth may improve stability. For
+        high-resolution cellular tomography projects, larger training datasets and longer optimization schedules often
+        provide superior denoising performance.
+
+        Final Perspective
+
+        CryoCARE training represents a powerful strategy for improving cryo-electron tomography data quality through
+        self-supervised deep learning. By leveraging statistically independent tomographic reconstructions, the protocol
+        enables biologically meaningful noise reduction while preserving structural detail. Careful selection of
+        training parameters, patch size, and network complexity is essential for achieving reliable denoising results
+        that support downstream structural interpretation and analysis.
+    """
 
     _label = 'CryoCARE Training'
     _devStatus = BETA

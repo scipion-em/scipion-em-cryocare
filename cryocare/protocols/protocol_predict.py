@@ -51,8 +51,155 @@ class Outputobjects(Enum):
 
 
 class ProtCryoCAREPrediction(ProtCryoCAREBase):
-    """Generate the final restored tomogram by applying the cryoCARE trained network to both
-tomograms followed by per-pixel averaging."""
+    """
+    Generates restored tomograms by applying a previously trained cryoCARE
+    denoising model to paired tomographic datasets. The protocol combines
+    information from complementary tomograms to improve signal quality,
+    reduce noise, and produce cleaner reconstructions suitable for
+    downstream cryo-electron tomography analysis.
+
+    AI Generated:
+
+    CryoCARE Prediction (ProtCryoCAREPrediction) — User Manual
+        Overview
+
+        The CryoCARE Prediction protocol applies a trained cryoCARE neural
+        network to tomographic datasets in order to generate denoised and
+        biologically more interpretable tomograms. Its main purpose is to
+        suppress acquisition noise while preserving structural details that
+        are essential for downstream visualization, segmentation, particle
+        picking, subtomogram averaging, and structural interpretation.
+
+        In cryo-electron tomography workflows, noise reduction is often one
+        of the most critical preprocessing stages because tomograms are
+        acquired under extremely low-dose conditions. Although these imaging
+        conditions preserve the biological specimen, they also produce very
+        noisy reconstructions. This protocol addresses that limitation by
+        using a deep learning model trained to distinguish reproducible
+        structural information from stochastic noise.
+
+        Inputs and General Workflow
+
+        The protocol requires a previously trained cryoCARE model together
+        with paired tomographic datasets. These paired tomograms typically
+        correspond to even and odd reconstructions generated independently
+        from the same acquisition. Because both tomograms contain the same
+        underlying biological signal but different noise realizations, the
+        neural network can restore structural information while avoiding
+        overfitting to noise.
+
+        The workflow processes each tomogram pair independently. The trained
+        model predicts restored versions of the input tomograms and combines
+        their information into a final denoised reconstruction. This design
+        allows the protocol to operate efficiently on large tomography
+        datasets while preserving consistency across multiple samples.
+
+        Biological Interpretation of Denoising
+
+        From a biological perspective, denoising should improve visibility
+        without altering meaningful structural features. Properly restored
+        tomograms typically reveal membranes, macromolecular complexes,
+        cytoskeletal elements, and organellar boundaries more clearly than
+        raw reconstructions. This often facilitates interpretation and
+        increases the reliability of subsequent analysis steps.
+
+        However, users should remember that denoising does not generate new
+        information. The protocol enhances reproducible signal already
+        present in the data. Careful biological interpretation remains
+        necessary, especially when evaluating weak densities, flexible
+        regions, or low-abundance structures.
+
+        Compatibility of Input Data
+
+        The quality of prediction strongly depends on the consistency between
+        the training data and the tomograms being restored. Ideally, the
+        prediction datasets should have been acquired under imaging
+        conditions similar to those used during training, including voxel
+        size, acquisition strategy, reconstruction parameters, and overall
+        contrast characteristics.
+
+        The protocol supports workflows in which even and odd tomograms are
+        already linked together, as well as workflows where both datasets
+        are provided independently. Maintaining correct correspondence
+        between paired tomograms is essential because mismatched pairs can
+        lead to biologically unreliable restorations.
+
+        Tiling and GPU Memory Management
+
+        Tomographic datasets are often too large to process entirely in GPU
+        memory. To address this limitation, the protocol allows tomograms to
+        be divided into smaller three-dimensional tiles during prediction.
+        This strategy enables processing of very large cellular tomograms
+        while remaining compatible with a wide range of GPU hardware.
+
+        Increasing the number of tiles reduces memory requirements but may
+        increase execution time. In most practical situations, users should
+        begin with the default configuration and only increase tiling when
+        memory limitations occur. Extremely aggressive tiling may slightly
+        reduce continuity between neighboring regions, particularly in very
+        large tomograms.
+
+        Parallel Prediction Workflow
+
+        The protocol is designed to support parallel execution across
+        multiple tomograms. This is particularly useful in large cryo-ET
+        projects involving many tilt series or cellular datasets. Parallel
+        processing significantly reduces total runtime and makes the
+        protocol suitable for facility-scale or high-throughput workflows.
+
+        Each tomogram is processed independently, allowing failed datasets
+        to be identified without interrupting the prediction of the
+        remaining samples. This behavior is especially valuable in large
+        experiments where occasional corrupted inputs or reconstruction
+        inconsistencies may occur.
+
+        Outputs and Their Interpretation
+
+        The protocol produces a new set of denoised tomograms that preserve
+        the geometry and metadata of the original reconstructions while
+        providing improved contrast and reduced noise. These outputs are
+        intended for downstream cryo-electron tomography analysis and can
+        be used directly in visualization software or subsequent Scipion
+        protocols.
+
+        In many biological applications, denoised tomograms improve the
+        detectability of macromolecular assemblies and facilitate manual or
+        automated annotation. Subtomogram averaging workflows may also
+        benefit indirectly because cleaner tomograms often improve particle
+        picking and alignment stability.
+
+        Nevertheless, users should visually inspect restored tomograms to
+        ensure that biologically relevant features are preserved and that no
+        unexpected artifacts have been introduced. Comparison against the
+        original tomograms is strongly recommended during validation.
+
+        Practical Recommendations
+
+        For most users, the best results are obtained when the prediction
+        model was trained using tomograms closely matched to the target
+        dataset. Differences in acquisition conditions or reconstruction
+        strategies may reduce denoising quality and should be minimized
+        whenever possible.
+
+        Users working with large tomograms should monitor GPU memory usage
+        and adjust tiling only when necessary. When multiple GPUs are
+        available, distributing prediction tasks across hardware resources
+        can substantially accelerate processing.
+
+        It is also advisable to inspect a subset of denoised tomograms
+        before processing an entire dataset. Early validation helps confirm
+        that the restored contrast and structural appearance remain
+        biologically meaningful.
+
+        Final Perspective
+
+        CryoCARE Prediction represents a powerful deep learning approach for
+        improving the interpretability of cryo-electron tomography data.
+        When applied carefully and validated appropriately, it can reveal
+        structural features that are difficult to observe in raw
+        reconstructions while preserving the integrity of the biological
+        information contained in the tomograms.
+    """
 
     _label = 'CryoCARE Prediction'
     _devStatus = BETA
