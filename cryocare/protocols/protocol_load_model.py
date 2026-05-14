@@ -16,7 +16,111 @@ class Outputobjects(Enum):
 
 
 class ProtCryoCARELoadModel(EMProtocol):
-    """Load a previously trained model."""
+    """
+    Loads a previously trained cryoCARE neural network model together
+    with its associated training data so that it can be reused for
+    tomogram restoration and denoising workflows.
+
+    AI Generated:
+
+    CryoCARE Load Trained Model (ProtCryoCARELoadModel) — User Manual
+        Overview
+
+        The CryoCARE Load Trained Model protocol imports an existing
+        cryoCARE model into the processing environment so it can be used
+        for tomogram denoising and restoration tasks. Its primary purpose
+        is to make previously trained neural networks reusable across
+        projects, datasets, or collaborative workflows without requiring
+        retraining from scratch.
+
+        In cryo-electron tomography, training a deep learning model can
+        require substantial computational resources and carefully prepared
+        datasets. Once a high-quality model has been generated, researchers
+        often wish to apply it repeatedly to similar tomographic data. This
+        protocol provides a structured mechanism for registering and
+        validating those trained models for later prediction workflows.
+
+        Inputs and General Workflow
+
+        The protocol requires two main inputs: a trained cryoCARE model and
+        the associated training data prepared during the original learning
+        process. The model contains the neural network parameters and
+        optimization results, while the training data provides the
+        normalization and dataset context expected by downstream cryoCARE
+        prediction workflows.
+
+        The imported model is expected to contain all files necessary for
+        inference and restoration. These typically include configuration
+        parameters, normalization information, training history, and neural
+        network weight files. Maintaining the integrity of these components
+        is important because incomplete or inconsistent model packages may
+        prevent successful tomogram restoration.
+
+        Biological and Practical Context
+
+        From a biological perspective, reusing a trained model is most
+        effective when the target tomograms resemble the data used during
+        training. Similar acquisition conditions, voxel sizes, contrast
+        characteristics, reconstruction methods, and specimen types
+        generally improve denoising quality and preserve biologically
+        meaningful structures.
+
+        Applying a model trained on substantially different datasets may
+        reduce restoration quality or introduce artifacts that complicate
+        interpretation. For this reason, users should evaluate restored
+        tomograms carefully whenever a model is transferred between
+        unrelated experimental conditions.
+
+        Validation and Data Consistency
+
+        The protocol performs consistency checks to ensure that the
+        introduced model and associated training datasets are complete and
+        compatible. Proper validation is particularly important because
+        cryoCARE prediction workflows depend not only on the trained neural
+        network but also on the normalization and dataset information
+        generated during training preparation.
+
+        Ensuring that all required training and validation datasets are
+        present helps maintain reproducibility and minimizes the risk of
+        incompatible prediction results. This is especially valuable in
+        collaborative environments where trained models may be exchanged
+        between users or institutions.
+
+        Outputs and Their Interpretation
+
+        After execution, the protocol generates a reusable cryoCARE model
+        object that can be directly connected to prediction and denoising
+        protocols. The resulting model serves as a portable representation
+        of the trained neural network together with its associated metadata
+        and training context.
+
+        Biologically, the loaded model does not alter any tomographic data
+        by itself. Instead, it prepares the trained network for subsequent
+        restoration workflows in which noisy tomograms can be processed and
+        denoised.
+
+        Practical Recommendations
+
+        Users should ensure that imported models originate from reliable
+        training workflows and that all required files remain intact.
+        Storing models together with their associated training datasets is
+        strongly recommended for long-term reproducibility and portability.
+
+        Before applying a loaded model to large experimental datasets, it
+        is advisable to validate its behavior on a small subset of
+        tomograms. This allows users to confirm that the restored contrast,
+        structural continuity, and denoising characteristics remain
+        biologically meaningful.
+
+        Final Perspective
+
+        The CryoCARE Load Trained Model protocol provides a practical and
+        reproducible mechanism for reusing previously trained denoising
+        networks in cryo-electron tomography workflows. By enabling trained
+        models to be shared and reapplied efficiently, it supports scalable
+        and consistent tomogram restoration across multiple experiments and
+        research projects.
+    """
 
     _label = 'CryoCARE Load Trained Model'
     _devStatus = BETA
